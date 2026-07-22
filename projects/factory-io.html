@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Factory I/O Manufacturing System | David Liu</title>
+
+    <meta
+        name="description"
+        content="A PLC-controlled automated manufacturing, assembly, dispatch, and storage system built in Factory I/O using CODESYS Structured Text."
+    >
+
+    <link rel="stylesheet" href="../style.css">
+</head>
+
+<body>
+
+    <header class="site-header">
+        <nav class="navbar">
+            <a class="logo" href="../index.html">David Liu</a>
+
+            <div class="nav-links">
+                <a href="../index.html#projects">Projects</a>
+                <a href="../index.html#about">About</a>
+                <a href="../index.html#contact">Contact</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+
+        <section class="project-hero section">
+            <p class="eyebrow">Industrial Automation</p>
+
+            <h1>PLC-Controlled Automated Manufacturing and Storage System</h1>
+
+            <p class="project-intro">
+                A modular Factory I/O production system integrating material
+                processing, buffering, synchronized dispatch, robotic assembly,
+                pallet handling, and automated vertical storage using CODESYS
+                Structured Text.
+            </p>
+
+            <div class="technology-list">
+                <span>CODESYS</span>
+                <span>Structured Text</span>
+                <span>Factory I/O</span>
+                <span>PLC State Machines</span>
+                <span>Industrial Automation</span>
+            </div>
+
+            <img
+                class="project-hero-image"
+                src="../assets/images/factory-io/factory-io-overview.jpg"
+                alt="Overhead view of the Factory I/O automated manufacturing system"
+            >
+        </section>
+
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Project Overview</p>
+                <h2>System purpose</h2>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    The goal of this project was to design and program a complete
+                    automated production line rather than a collection of isolated
+                    machines. The system processes multiple material types, stores
+                    completed components in buffer lanes, selects ready production
+                    lanes for release, assembles matching parts, transfers finished
+                    products onto pallets, and stores them automatically.
+                </p>
+
+                <p>
+                    The control system was written in CODESYS using Structured Text.
+                    Reusable function blocks and state machines were used to separate
+                    station control, buffering, synchronized pair release, dispatch,
+                    assembly, and storage logic.
+                </p>
+            </div>
+        </section>
+
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">System Architecture</p>
+                <h2>Main subsystems</h2>
+            </div>
+
+            <div class="project-feature-grid">
+
+                <article class="project-feature">
+                    <h3>Material Processing</h3>
+                    <p>
+                        Six processing stations manufacture lid and base components
+                        from blue, green, and metal materials.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Buffer Management</h3>
+                    <p>
+                        Dedicated buffer lanes detect waiting components and control
+                        stop blades and release conveyors.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Pair Synchronization</h3>
+                    <p>
+                        Matching lid and base parts are released together only when
+                        both components are ready.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Age-Priority Dispatch</h3>
+                    <p>
+                        When multiple production lanes request access, the lane that
+                        has waited longest receives the next release grant.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Robotic Assembly</h3>
+                    <p>
+                        A robotic assembly cell receives synchronized components and
+                        combines them into finished products.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Automated Storage</h3>
+                    <p>
+                        Finished products are palletized, transferred, and placed
+                        into a vertical storage system.
+                    </p>
+                </article>
+
+            </div>
+        </section>
+
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Engineering Focus</p>
+                <h2>What I designed</h2>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    My work focused on PLC architecture, reusable control logic,
+                    sensor sequencing, synchronization, and communication between
+                    subsystems. The project required coordinating multiple state
+                    machines without allowing one station to interfere with another.
+                </p>
+
+                <p>
+                    Particular attention was given to reliable release behavior,
+                    fair dispatch selection, sensor edge detection, timeout handling,
+                    and clear separation between local machine logic and higher-level
+                    production coordination.
+                </p>
+            </div>
+        </section>
+
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Coming Next</p>
+                <h2>Full case study in progress</h2>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    The completed page will include the control architecture,
+                    function block design, dispatch algorithm, selected Structured
+                    Text code, engineering challenges, fault handling, and a full
+                    demonstration video.
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>© 2026 David Liu. Built with HTML and CSS.</p>
+    </footer>
+
+</body>
+</html>
