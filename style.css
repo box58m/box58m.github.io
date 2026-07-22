@@ -477,18 +477,11 @@ footer {
     line-height: 1.65;
 }
 
-.code-explanation {
-    max-width: 820px;
-    margin: 22px auto 0;
+.code-description {
+    margin-top: 22px;
 }
 
-.code-explanation p {
-    margin-bottom: 16px;
-    color: var(--text-secondary);
-    font-size: 1rem;
-}
-
-.code-explanation code {
+.code-description code {
     padding: 2px 6px;
     background: var(--surface);
     border: 1px solid var(--border);
