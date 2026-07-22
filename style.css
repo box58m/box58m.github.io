@@ -431,3 +431,23 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+.control-architecture-diagram {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.control-architecture-diagram img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.control-architecture-diagram figcaption {
+    max-width: 760px;
+    margin: 14px auto 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    text-align: center;
+}
