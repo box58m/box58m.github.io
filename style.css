@@ -451,3 +451,28 @@ footer {
     line-height: 1.6;
     text-align: center;
 }
+
+.code-block {
+    max-width: 900px;
+    margin: 30px auto 0;
+    overflow-x: auto;
+    background: #111827;
+    border: 1px solid #263244;
+    border-radius: 12px;
+}
+
+.code-block pre {
+    margin: 0;
+    padding: 24px;
+}
+
+.code-block code {
+    color: #e5e7eb;
+    font-family:
+        "Cascadia Code",
+        "SFMono-Regular",
+        Consolas,
+        monospace;
+    font-size: 0.9rem;
+    line-height: 1.65;
+}
