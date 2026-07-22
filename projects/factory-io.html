@@ -191,6 +191,40 @@
 </section>
 
         <section class="section project-section">
+    <div class="section-heading">
+        <p class="eyebrow">Control Logic</p>
+        <h2>Hybrid component-pair dispatch</h2>
+
+        <p>
+            The dispatcher selects which matching lid-and-base pair receives
+            access to the assembly cell.
+        </p>
+    </div>
+
+    <div class="project-text">
+        <p>
+            Pair availability is the primary selection criterion. The dispatcher
+            compares the number of ready components in each material lane and
+            prioritizes the pair with the strongest available supply.
+        </p>
+
+        <p>
+            When multiple lanes reach the defined break-even condition, an
+            age-priority value resolves the tie. Waiting lanes accumulate priority,
+            while the selected lane resets after receiving a release grant. This
+            prevents one material type from being repeatedly delayed while still
+            keeping availability as the main production decision.
+        </p>
+
+        <p>
+            The dispatcher only grants permission to release. Each pair controller
+            remains responsible for verifying that both components are present and
+            commanding the two buffers together.
+        </p>
+    </div>
+</section>
+
+        <section class="section project-section">
             <div class="section-heading">
                 <p class="eyebrow">Engineering Focus</p>
                 <h2>What I designed</h2>
