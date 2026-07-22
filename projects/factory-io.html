@@ -224,6 +224,37 @@
     </div>
 </section>
 
+        <div class="code-block">
+    <pre><code>(* Evaluate the blue material pair *)
+
+IF BlueReady THEN
+    IF (BlueAvailable > BestScore)
+        OR
+        (
+            (BlueAvailable = BestScore)
+            AND (BlueAge > BestAge)
+        )
+    THEN
+        BestScore := BlueAvailable;
+        BestAge := BlueAge;
+        SelectedPair := 1;
+    END_IF;
+END_IF;</code></pre>
+</div>
+
+        <div class="code-explanation">
+    <p>
+        Each ready material pair is evaluated against the current best candidate.
+        Available inventory is compared first. When two candidates have equal
+        availability, the lane with the greater waiting age is selected.
+    </p>
+
+    <p>
+        The same comparison is repeated for the green and metal pairs, leaving
+        <code>SelectedPair</code> with the highest-priority valid candidate.
+    </p>
+</div>
+
         <section class="section project-section">
             <div class="section-heading">
                 <p class="eyebrow">Engineering Focus</p>
