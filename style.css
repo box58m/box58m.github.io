@@ -479,9 +479,9 @@ footer {
 
 /* Code explanation alignment */
 .code-description {
-    max-width: 820px;
+    max-width: 720px;
     margin-top: 22px;
-    padding-left: 24px;
+    padding-left: 0;
 }
 
 .code-description code {
