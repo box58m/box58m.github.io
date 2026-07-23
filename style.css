@@ -494,3 +494,51 @@ footer {
         monospace;
     font-size: 0.9em;
 }
+
+.demo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.demo-card {
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+
+.demo-card-wide {
+    grid-column: span 2;
+}
+
+.demo-card video {
+    display: block;
+    width: 100%;
+    max-height: 520px;
+    background: #000;
+    object-fit: contain;
+}
+
+.demo-card-content {
+    padding: 24px;
+}
+
+.demo-card-content h3 {
+    margin-bottom: 10px;
+    font-size: 1.25rem;
+}
+
+.demo-card-content p {
+    color: var(--text-secondary);
+}
+
+@media (max-width: 760px) {
+    .demo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .demo-card-wide {
+        grid-column: span 1;
+    }
+}
