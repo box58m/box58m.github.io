@@ -255,22 +255,20 @@ END_IF;</code></pre>
     </p>
 </div>
 
-
         <section class="section project-section">
     <div class="section-heading">
         <p class="eyebrow">System Demonstration</p>
         <h2>Control behavior in operation</h2>
 
         <p>
-            These clips highlight three important dynamic behaviors in the system:
-            synchronized component release, successful inspection flow, and failed
-            inspection rejection.
+            These clips highlight synchronized component release,
+            successful inspection flow, and failed-product rejection.
         </p>
     </div>
 
-    <div class="demo-layout">
+    <div class="factory-demo-layout">
 
-        <article class="demo-card demo-card-tall">
+        <article class="demo-card pair-release-card">
             <video autoplay muted loop playsinline controls preload="metadata">
                 <source
                     src="../assets/videos/factory-io/factory-io-pair-release.mp4"
@@ -283,55 +281,57 @@ END_IF;</code></pre>
                 <h3>Synchronized Pair Release</h3>
 
                 <p>
-                    Matching lid and base components remain staged until both are
-                    ready and the selected material pair receives a release grant.
-                    The two buffers then release together toward the assembly cell.
+                    Matching lid and base components remain staged until both
+                    are ready and the selected pair receives a release grant.
+                    The two buffers then release together toward assembly.
                 </p>
             </div>
         </article>
 
-        <article class="demo-card">
-            <video autoplay muted loop playsinline controls preload="metadata">
-                <source
-                    src="../assets/videos/factory-io/factory-io-inspection-success.mp4"
-                    type="video/mp4"
-                >
-                Your browser does not support embedded video.
-            </video>
+        <div class="inspection-video-column">
 
-            <div class="demo-card-content">
-                <h3>Inspection: Successful Assembly</h3>
+            <article class="demo-card">
+                <video autoplay muted loop playsinline controls preload="metadata">
+                    <source
+                        src="../assets/videos/factory-io/factory-io-inspection-success.mp4"
+                        type="video/mp4"
+                    >
+                    Your browser does not support embedded video.
+                </video>
 
-                <p>
-                    This clip shows a correctly assembled product passing the
-                    inspection stage and continuing along the accepted production path.
-                </p>
-            </div>
-        </article>
+                <div class="demo-card-content">
+                    <h3>Successful Inspection</h3>
 
-        <article class="demo-card">
-            <video autoplay muted loop playsinline controls preload="metadata">
-                <source
-                    src="../assets/videos/factory-io/factory-io-inspection-failure.mp4"
-                    type="video/mp4"
-                >
-                Your browser does not support embedded video.
-            </video>
+                    <p>
+                        A correctly assembled product passes inspection and
+                        continues along the accepted production path.
+                    </p>
+                </div>
+            </article>
 
-            <div class="demo-card-content">
-                <h3>Inspection: Failed Assembly and Rejection</h3>
+            <article class="demo-card">
+                <video autoplay muted loop playsinline controls preload="metadata">
+                    <source
+                        src="../assets/videos/factory-io/factory-io-inspection-failure.mp4"
+                        type="video/mp4"
+                    >
+                    Your browser does not support embedded video.
+                </video>
 
-                <p>
-                    This clip shows the inspection subsystem identifying a failed
-                    assembly and routing the rejected product away from the normal
-                    downstream flow.
-                </p>
-            </div>
-        </article>
+                <div class="demo-card-content">
+                    <h3>Failed Assembly and Rejection</h3>
 
+                    <p>
+                        A failed assembly is detected and diverted away from
+                        the accepted downstream production path.
+                    </p>
+                </div>
+            </article>
+
+        </div>
     </div>
 </section>
-      
+
 
    
         <section class="section project-section">
