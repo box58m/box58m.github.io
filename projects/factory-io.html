@@ -201,30 +201,31 @@
         </p>
     </div>
 
-    <div class="project-text">
-        <p>
-            Pair availability is the primary selection criterion. The dispatcher
-            compares the number of ready components in each material lane and
-            prioritizes the pair with the strongest available supply.
-        </p>
 
-        <p>
-            When multiple lanes reach the defined break-even condition, an
-            age-priority value resolves the tie. Waiting lanes accumulate priority,
-            while the selected lane resets after receiving a release grant. This
-            prevents one material type from being repeatedly delayed while still
-            keeping availability as the main production decision.
-        </p>
 
-        <p>
-            The dispatcher only grants permission to release. Each pair controller
-            remains responsible for verifying that both components are present and
-            commanding the two buffers together.
-        </p>
-    </div>
-</section>
+<div class="project-text">
+    <p>
+        Pair availability is the primary selection criterion. The dispatcher
+        compares the number of ready components in each material lane and
+        prioritizes the pair with the strongest available supply.
+    </p>
 
-        <div class="code-block">
+    <p>
+        When multiple lanes reach the defined break-even condition, an
+        age-priority value resolves the tie. Waiting lanes accumulate priority,
+        while the selected lane resets after receiving a release grant. This
+        prevents one material type from being repeatedly delayed while still
+        keeping availability as the main production decision.
+    </p>
+
+    <p>
+        The dispatcher only grants permission to release. Each pair controller
+        remains responsible for verifying that both components are present and
+        commanding the two buffers together.
+    </p>
+</div>
+
+<div class="code-block">
     <pre><code>(* Evaluate the blue material pair *)
 
 IF BlueReady THEN
@@ -240,8 +241,9 @@ IF BlueReady THEN
         SelectedPair := 1;
     END_IF;
 END_IF;</code></pre>
-            
-<div class="section-heading code-description">
+</div>
+
+<div class="project-text code-description">
     <p>
         Each ready material pair is evaluated against the current best candidate.
         Available inventory is compared first. When two candidates have equal
@@ -253,6 +255,12 @@ END_IF;</code></pre>
         <code>SelectedPair</code> with the highest-priority valid candidate.
     </p>
 </div>
+
+</section>
+
+
+
+            
 
         <section class="section project-section">
     <div class="section-heading">
