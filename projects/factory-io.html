@@ -392,21 +392,48 @@ END_IF;</code></pre>
             </div>
         </section>
 
-        <section class="section project-section">
-            <div class="section-heading">
-                <p class="eyebrow">Coming Next</p>
-                <h2>Full case study in progress</h2>
-            </div>
 
-            <div class="project-text">
-                <p>
-                    The completed page will include the control architecture,
-                    function block design, dispatch algorithm, selected Structured
-                    Text code, engineering challenges, fault handling, and a full
-                    demonstration video.
-                </p>
-            </div>
-        </section>
+<section class="section project-section">
+    <div class="section-heading">
+        <p class="eyebrow">Engineering Challenges</p>
+        <h2>Reliability and fault handling</h2>
+
+        <p>
+            Building the complete line required more than sequencing individual
+            machines. The primary challenge was maintaining reliable material
+            flow across independently controlled subsystems.
+        </p>
+    </div>
+
+    <div class="project-feature-grid">
+        <article class="project-feature">
+            <h3>Physical Transfer Confirmation</h3>
+            <p>
+                Downstream sensors confirm that material has physically reached
+                the next subsystem, reducing reliance on controller-state
+                assumptions alone.
+            </p>
+        </article>
+
+        <article class="project-feature">
+            <h3>Synchronized Release</h3>
+            <p>
+                Pair controllers verify that both matching components are present
+                before commanding their buffers together, preventing incomplete
+                assemblies from entering the cell.
+            </p>
+        </article>
+
+        <article class="project-feature">
+            <h3>Timeout Recovery</h3>
+            <p>
+                The assembly sequence monitors expected transitions and returns
+                the subsystem to a recoverable state when an operation does not
+                complete within its allowed time.
+            </p>
+        </article>
+    </div>
+</section>
 
     </main>
 
