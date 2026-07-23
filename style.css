@@ -477,9 +477,11 @@ footer {
     line-height: 1.65;
 }
 
+/* Code explanation alignment */
 .code-description {
-    max-width: 820px;
+    max-width: 780px;
     margin-top: 22px;
+    margin-left: 42px;
 }
 
 .code-description code {
@@ -495,6 +497,8 @@ footer {
     font-size: 0.9em;
 }
 
+
+/* Demonstration layout */
 .factory-demo-layout {
     display: grid;
     grid-template-columns: minmax(280px, 0.8fr) minmax(420px, 1.2fr);
@@ -508,8 +512,32 @@ footer {
     gap: 24px;
 }
 
+.demo-card {
+    overflow: hidden;
+    height: fit-content;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+
+.demo-card-content {
+    padding: 20px 24px;
+}
+
+.demo-card-content h3 {
+    margin-bottom: 8px;
+    font-size: 1.2rem;
+}
+
+.demo-card-content p {
+    color: var(--text-secondary);
+}
+
+
+/* Tall pair-release clip */
 .pair-release-card {
     align-self: start;
+    height: fit-content;
 }
 
 .pair-release-card video {
@@ -517,15 +545,45 @@ footer {
     width: 100%;
     height: auto;
     max-height: 620px;
-    object-fit: contain;
     background: var(--surface);
+    object-fit: contain;
+}
+
+
+/* Wide inspection clips */
+.inspection-video-column .demo-card {
+    overflow: hidden;
 }
 
 .inspection-video-column video {
     display: block;
     width: 100%;
-    aspect-ratio: 2 / 1;
-    object-fit: cover;
+    height: clamp(190px, 20vw, 250px);
     background: var(--surface);
+    object-fit: cover;
+    object-position: center;
+}
+
+
+/* Responsive layout */
+@media (max-width: 850px) {
+    .factory-demo-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .pair-release-card video {
+        max-height: 520px;
+    }
+
+    .inspection-video-column video {
+        height: auto;
+        aspect-ratio: 2 / 1;
+    }
+}
+
+@media (max-width: 760px) {
+    .code-description {
+        margin-left: 0;
+    }
 }
 
