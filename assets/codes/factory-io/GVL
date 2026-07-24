@@ -1,0 +1,327 @@
+VAR_GLOBAL
+	ConveyorRunning : BOOL := TRUE;
+	counterReset : BOOL;
+	BC6M_2 : BOOL := TRUE;
+	BC6M_3 : BOOL := TRUE;
+	BC6M_4 : BOOL := TRUE;
+	BC6M_7 : BOOL := TRUE;
+	BC6M_8 : BOOL := TRUE;
+	BC6M_9 : BOOL := TRUE;
+	BC2M_4 : BOOL := TRUE;
+	BC2M_13 : BOOL := TRUE;
+	BC6M_1 : BOOL := TRUE;
+	BC6M_6 : BOOL := TRUE;
+	BC6M_0 : BOOL := TRUE;
+	BC6M_5 : BOOL := TRUE;
+	BC6M_10 : BOOL := TRUE;
+	BC6M_11 : BOOL := TRUE;
+	BC6M_12 : BOOL := TRUE;
+	BC6M_13 : BOOL := TRUE;
+	BC6M_14 : BOOL := TRUE;
+	BC6M_15 : BOOL := TRUE;
+	BC6M_16 : BOOL := TRUE;
+	BC6M_17 : BOOL := TRUE;
+	BCCCW_0: BOOL := TRUE;
+	BCCW_1 : BOOL := TRUE;
+	BCI_0 : BOOL := TRUE;
+	
+	RC6M_2 : BOOL := TRUE;
+	RC4M_1 : BOOL := TRUE;
+	
+
+	
+	PalletGenerationRoller : BOOL;
+	RollerCon6M_0 : BOOL;
+	RollerCon6M_1 : BOOL;
+	RollerCon4M_0 : BOOL;
+	CRC_0 : BOOL;
+	CRC_1 : BOOL;
+	
+	
+	
+	BlueLidCount : INT := 0;
+    GrnLidCount  : INT := 0;
+    MtlLidCount  : INT := 0;
+	BlueBaseCount : INT := 0;
+    GrnBaseCount  : INT := 0;
+    MtlBaseCount  : INT := 0;
+	
+	
+	BlueLidInQ : INT := 0;
+	GrnLidInQ : INT := 0;
+	MtlLidInQ : INT := 0;
+	BlueBaseInQ : INT := 0;
+	GrnBaseInQ : INT := 0;
+	MtlBaseInQ : INT := 0;
+	
+	
+	Blue_lid_mat_vis : BOOL;
+	Blue_lid_mat_push : BOOL;
+	Blue_lid_mat_feed : BOOL;
+	Blue_lid_open : BOOL;
+	
+	Blue_base_mat_vis : BOOL;
+	Blue_base_mat_push : BOOL;
+	Blue_base_mat_feed : BOOL;
+	Blue_base_open : BOOL;
+	
+	
+	Grn_lid_mat_vis : BOOL;
+	Grn_lid_mat_push : BOOL;
+	Grn_lid_mat_feed : BOOL;
+	Grn_lid_open : BOOL;
+	
+	Grn_base_mat_vis : BOOL;
+	Grn_base_mat_push : BOOL;
+	Grn_base_mat_feed : BOOL;
+	Grn_base_open : BOOL;
+	
+	
+	Mtl_lid_mat_vis : BOOL;
+	Mtl_lid_mat_push : BOOL;
+	Mtl_lid_mat_feed : BOOL;
+	Mtl_lid_open : BOOL;
+	
+	Mtl_base_mat_vis : BOOL;
+	Mtl_base_mat_push : BOOL;
+	Mtl_base_mat_feed : BOOL;
+	Mtl_base_open : BOOL;
+	
+	MachineStation0Run : BOOL;
+	MachineStation1Run : BOOL;
+	MachineStation2Run : BOOL;
+	
+	MachineStation3Run : BOOL;
+	MachineStation4Run : BOOL;
+	MachineStation5Run : BOOL;
+	
+	
+	MachineStation0Stop : BOOL := TRUE;
+	MachineStation1Stop : BOOL := TRUE;
+	MachineStation2Stop : BOOL := TRUE;
+	
+	MachineStation3Stop : BOOL := TRUE;
+	MachineStation4Stop : BOOL := TRUE;
+	MachineStation5Stop : BOOL := TRUE;
+	
+	
+	MachineStation0MakeLid : BOOL := TRUE;
+	MachineStation1MakeLid : BOOL := TRUE;
+	MachineStation2MakeLid : BOOL := TRUE;
+	
+	
+	MachineStation0Progress : BOOL;
+	MachineStation1Progress : BOOL;
+	MachineStation2Progress : BOOL;
+	
+	MachineStation3Progress : BOOL;
+	MachineStation4Progress : BOOL;
+	MachineStation5Progress : BOOL;
+	
+	
+	MachineStation0Open : BOOL;
+	MachineStation1Open : BOOL;
+	MachineStation2Open : BOOL;
+	MachineStation3Open : BOOL;
+	MachineStation4Open : BOOL;
+	MachineStation5Open : BOOL;
+	
+	
+	BlueLidStop : BOOL := TRUE;
+	GrnLidStop : BOOL := TRUE;
+	MtlLidStop : BOOL := TRUE;
+	BlueBaseStop : BOOL := TRUE;
+	GrnBaseStop : BOOL := TRUE;
+	MtlBaseStop : BOOL := TRUE;
+	
+	BlueLidPusherLim : BOOL;
+	GrnLidPusherLim : BOOL;
+	MtlLidPusherLim : BOOL;
+	BlueBasePusherLim : BOOL;
+	GrnBasePusherLim : BOOL;
+	MtlBasePusherLim : BOOL;
+	
+	BlueLidBufferCB : BOOL;
+	GrnLidBuffer : BOOL;
+	MtlLidBuffer : BOOL;	
+	BlueBaseBufferCB : BOOL;
+	GrnBaseBuffer : BOOL;
+	MtlBaseBuffer : BOOL;	
+	
+	BlueLidBufferReady : BOOL;
+	GrnLidBufferReady : BOOL;
+	MtlLidBufferReady : BOOL;	
+	BlueBaseBufferReady : BOOL;
+	GrnBaseBufferReady : BOOL;
+	MtlBaseBufferReady : BOOL;
+	
+	BlueLidToAssemb : BOOL;
+	GrnLidToAssemb : BOOL;
+	MtlLidToAssemb : BOOL;
+	BlueBaseToAssemb : BOOL;
+	GrnBaseToAssemb : BOOL;
+	MtlBaseToAssemb : BOOL;
+	
+	BluePairGrant : BOOL := FALSE;
+	GreenPairGrant : BOOL := FALSE;
+	MetalPairGrant : BOOL := FALSE;
+	
+	
+	
+	
+	
+	
+	AssembStopLid : BOOL := FALSE;
+	AssembStopBase : BOOL := FALSE;
+	
+	AssembLidBelt : BOOL;
+	AssembBaseBelt : BOOL;
+	
+	AssembLidClamp : BOOL;
+	AssembLidRaise : BOOL;
+	AssembBaseClamp : BOOL;
+	AssembBaseRaise : BOOL;
+	
+	PickSetX : REAL;
+	PickSetZ : REAL;
+	PickGrab : BOOL;
+	
+	AssembLidReady : BOOL;
+	AssembBaseReady : BOOL;
+	
+	LidClampDownSensor : BOOL;
+    BaseClampDownSensor : BOOL;
+	
+	LidClampLockedSensor : BOOL;
+    BaseClampLockedSensor : BOOL;
+	
+	PickXPositionV :REAL;
+    PickZPositionV : REAL;
+
+    PickMovingXSensor : BOOL;
+    PickMovingZSensor : BOOL;
+
+    PickDetectedSensor : BOOL;
+	
+	
+	
+	
+	
+	BlueLidIns : BOOL;
+	BlueBaseIns : BOOL;
+	GreenLidIns : BOOL;
+	GreenBaseIns : BOOL;
+	MetalLidIns : BOOL;
+	MetalBaseIns : BOOL;
+	
+	BlueRejectPusher : BOOL := FALSE;
+	GreenRejectPusher : BOOL := FALSE;
+	MetalRejectPusher : BOOL := FALSE;
+	
+	BluePusherFrontLimit: BOOL;
+	GreenPusherFrontLimit: BOOL;
+	MetalPusherFrontLimit: BOOL;
+	
+	
+	
+	BlueAssembVis : BOOL;
+	GreenAssembVis : BOOL;
+	MetalAssembVis : BOOL;
+	
+	BluePalletPos : BOOL;
+	GreenPalletPos : BOOL;
+	MetalPalletPos : BOOL;
+	
+	BlueAssembArmTurn : BOOL;
+	GreenAssembArmTurn : BOOL;
+	MetalAssembArmTurn: BOOL;
+	
+	BlueAssembArmBelt : BOOL;
+	GreenAssembArmBelt : BOOL;
+	MetalAssembArmBelt: BOOL;
+	
+	BlueAssembBufferBelt : BOOL;
+	GreenAssembBufferBelt : BOOL;
+	MetalAssembBufferBelt : BOOL;
+	
+	PalletExitSensor : BOOL;
+	
+	
+	PalletTurntableEntranceSensor : BOOL;
+	PalletTurntableFrontLimit : BOOL;
+	PalletTurntable90Limit : BOOL;
+	
+	PalletEntranceBelt : BOOL;
+	TurntableBeltMotor : BOOL;
+	TurntableBeltMotorReverse : BOOL;
+	
+	TurntablePositive : BOOL;
+	TurntableNegative : BOOL;
+	
+	TurntableHome : BOOL; 
+	
+	Crane0Entrance : BOOL; 
+	Crane1Entrance : BOOL; 
+	Crane2Entrance : BOOL; 
+	
+	Crane0LoadReady : BOOL; 
+	Crane1LoadReady : BOOL; 
+	Crane2LoadReady : BOOL; 
+	
+	Crane0Target : INT; 
+	Crane1Target : INT; 
+	Crane2Target : INT; 
+	
+	Crane0LeftLimit : BOOL;
+	Crane1LeftLimit : BOOL;
+	Crane2LeftLimit : BOOL;
+	
+	Crane0RightLimit : BOOL;
+	Crane1RightLimit : BOOL;
+	Crane2RightLimit : BOOL;
+	
+	Crane0MiddleLimit : BOOL;
+	Crane1MiddleLimit : BOOL;
+	Crane2MiddleLimit : BOOL;
+	
+	Crane0MovingX : BOOL;
+	Crane1MovingX : BOOL;
+	Crane2MovingX : BOOL;
+	
+	Crane0MovingZ : BOOL;
+	Crane1MovingZ : BOOL;
+	Crane2MovingZ : BOOL;
+	
+	Crane0Left : BOOL;
+	Crane1Left : BOOL;
+	Crane2Left : BOOL;
+	
+	Crane0Right : BOOL;
+	Crane1Right : BOOL;
+	Crane2Right : BOOL;
+	
+	Crane0Lift : BOOL;
+	Crane1Lift : BOOL;
+	Crane2Lift : BOOL;
+	
+	
+	CRCCW_4 : BOOL;
+	CRCCW_5 : BOOL;
+	CRCCW_7 : BOOL;
+	
+	LoadingConveyor0 : BOOL;
+	LoadingConveyor1 : BOOL;
+	LoadingConveyor2 : BOOL;
+	
+	RC4M_2 : BOOL := TRUE;
+	RC4M_3 : BOOL := TRUE;
+	RC4M_4 : BOOL := TRUE;
+	RC4M_5 : BOOL := TRUE;
+	RC4M_6 : BOOL := TRUE;
+	CRCCW_6 : BOOL := TRUE;
+	CRCW_3 : BOOL := TRUE;
+	
+	EStop : BOOL;
+	
+	
+END_VAR
