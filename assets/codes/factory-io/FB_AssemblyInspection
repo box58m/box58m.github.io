@@ -1,0 +1,153 @@
+FUNCTION_BLOCK FB_AssemblyInspection
+
+VAR_INPUT
+    Enable : BOOL;
+    Reset : BOOL;
+
+    LidVision : BOOL;
+    BaseVision : BOOL;
+
+    PusherFrontLimit : BOOL;
+
+    SensorSettleTime : TIME := T#100MS;
+    TravelTime : TIME := T#1S;
+END_VAR
+
+VAR_OUTPUT
+    Pusher : BOOL;
+
+    ValidAssembly : BOOL;
+    InvalidAssembly : BOOL;
+    PusherDone : BOOL;
+
+    State : INT;
+END_VAR
+
+VAR
+    SettleTimer : TON;
+    TravelTimer : TON;
+
+    InspectionPresent : BOOL;
+END_VAR
+
+
+
+// ------------------------------------------------------------
+// Inspection presence
+// ------------------------------------------------------------
+
+// An assembly is considered present when either vision sensor is active.
+InspectionPresent := LidVision OR BaseVision;
+
+
+// ------------------------------------------------------------
+// Timers
+// ------------------------------------------------------------
+
+// Allow the lid and base vision signals to stabilize before evaluation.
+SettleTimer(
+    IN := Enable AND (State = 1),
+    PT := SensorSettleTime
+);
+
+// Approximate travel time from the inspection point to the pusher.
+// Adjust as needed.
+TravelTimer(
+    IN := Enable AND (State = 2),
+    PT := TravelTime
+);
+
+
+// ------------------------------------------------------------
+// One-scan pulse outputs
+// ------------------------------------------------------------
+
+// These outputs are reset every scan and asserted only during the
+// state transition in which the corresponding event occurs.
+ValidAssembly := FALSE;
+InvalidAssembly := FALSE;
+PusherDone := FALSE;
+
+
+// ------------------------------------------------------------
+// Reset and enable handling
+// ------------------------------------------------------------
+
+IF Reset OR NOT Enable THEN
+    State := 0;
+    Pusher := FALSE;
+
+ELSE
+
+    // --------------------------------------------------------
+    // Inspection and rejection sequence
+    // --------------------------------------------------------
+
+    CASE State OF
+
+        0:  // Idle: wait for an assembly to reach the vision sensors
+            Pusher := FALSE;
+
+            IF InspectionPresent THEN
+                State := 1;
+            END_IF;
+
+
+        1:  // Wait for the vision signals to stabilize
+            Pusher := FALSE;
+
+            IF SettleTimer.Q THEN
+
+                // Both components detected: assembly is valid.
+                IF LidVision AND BaseVision THEN
+                    ValidAssembly := TRUE;
+                    State := 2;
+
+                // Only one component detected: assembly is invalid.
+                ELSIF LidVision XOR BaseVision THEN
+                    InvalidAssembly := TRUE;
+                    State := 4;
+
+                ELSE
+                    // No component remains at the inspection station.
+                    State := 0;
+                END_IF;
+
+            END_IF;
+
+
+        2:  // Wait for the valid assembly to reach the pusher
+            Pusher := FALSE;
+
+            IF TravelTimer.Q THEN
+                State := 3;
+            END_IF;
+
+
+        3:  // Extend the pusher
+            Pusher := TRUE;
+
+            IF PusherFrontLimit THEN
+                Pusher := FALSE;
+                PusherDone := TRUE;
+                State := 4;
+            END_IF;
+
+
+        4:  // Wait for the inspection station to clear
+            Pusher := FALSE;
+
+            IF NOT LidVision AND NOT BaseVision THEN
+                State := 0;
+            END_IF;
+
+
+        ELSE
+            // Recover from an undefined state.
+            State := 0;
+            Pusher := FALSE;
+
+    END_CASE;
+
+END_IF;
+
