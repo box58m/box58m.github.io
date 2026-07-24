@@ -1,141 +1,418 @@
-FUNCTION_BLOCK FB_LoadingBuffer
+FUNCTION_BLOCK FB_LoadingDispatcher
 VAR_INPUT
-    Enable           : BOOL;
-    Reset            : BOOL;
+    Enable : BOOL;
+    Reset  : BOOL;
 
-    PartDetected     : BOOL;
-    PalletInPosition : BOOL;
-    LoadPermission   : BOOL;
+    BlueRequest  : BOOL;
+    GreenRequest : BOOL;
+    MetalRequest : BOOL;
 
-    TargetCount      : INT := 3;
-	SortTime         : TIME := T#2S;
-    LoadTime         : TIME := T#8S;
+    BluePalletPos  : BOOL;
+    GreenPalletPos : BOOL;
+    MetalPalletPos : BOOL;
+
+    BlueBatchComplete  : BOOL;
+    GreenBatchComplete : BOOL;
+    MetalBatchComplete : BOOL;
+
+    (* Diffuse sensor at the end of the dispatch belt *)
+    DispatchExitSensor : BOOL;
+
+    PalletGenerationTime : TIME := T#1S;
 END_VAR
-
 
 VAR_OUTPUT
-	PivotArmCommand : BOOL;
-	ArmBeltRun   : BOOL;
-    BufferBeltRun  : BOOL;
-    BufferReady    : BOOL;
-    RequestPallet  : BOOL;
-    LoadingBusy    : BOOL;
-    BatchComplete  : BOOL;
-    BufferedCount  : INT;
-    State          : INT;
-END_VAR
+    PalletGenerationBelt : BOOL;
+    PalletDispatchBelt   : BOOL;
 
+    BlueLoadGrant  : BOOL;
+    GreenLoadGrant : BOOL;
+    MetalLoadGrant : BOOL;
+
+    DispatchBeltClear : BOOL := TRUE;
+
+    DispatcherBusy    : BOOL;
+    ActiveDestination : INT;
+    State             : INT;
+	
+	QueueFull : BOOL;
+END_VAR
 
 VAR
-    PartEdge  : R_TRIG;
-	SortTimer : TON;
-    LoadTimer : TON;
+    GenerationTimer : TON;
+    ExitSensorEdge  : R_TRIG;
+	
+	    (* Request-age counters *)
+    BlueRequestAge  : UDINT := 0;
+    GreenRequestAge : UDINT := 0;
+    MetalRequestAge : UDINT := 0;
+
+    (* Temporary selection variables *)
+    SelectedDestination : INT := 0;
+    OldestRequestAge      : UDINT := 0;
+END_VAR
+
+VAR_IN_OUT
+    // 1 = Blue, 2 = Green, 3 = Metal
+    PalletColorQueue : ARRAY[0..19] OF INT;
+
+    QueueTail  : INT;
+    QueueCount : INT;
+END_VAR
+
+VAR CONSTANT
+    COLOR_BLUE  : INT := 1;
+    COLOR_GREEN : INT := 2;
+    COLOR_METAL : INT := 3;
+
+    QUEUE_SIZE : INT := 20;
 END_VAR
 
 
 
 
 
-PartEdge(CLK := PartDetected);
 
-BatchComplete := FALSE;
-BufferReady := BufferedCount >= TargetCount;
+(* ---------------------------------------------------------
+Dispatch-exit edge detection
+--------------------------------------------------------- *)
+
+(* Detect the loaded pallet reaching the end of the dispatch belt. *)
+ExitSensorEdge(CLK := DispatchExitSensor);
+
+(* ---------------------------------------------------------
+Dispatch-belt clearance latch
+--------------------------------------------------------- *)
+
+(* DispatchBeltClear remains latched.
+Do not assign TRUE to it as a default on every scan. *)
+IF ExitSensorEdge.Q THEN
+DispatchBeltClear := TRUE;
+END_IF;
+
+(* ---------------------------------------------------------
+Request-age reset
+--------------------------------------------------------- *)
+
+(* A lane retains priority age only while it is actively requesting. *)
+IF NOT BlueRequest THEN
+BlueRequestAge := 0;
+END_IF;
+
+IF NOT GreenRequest THEN
+GreenRequestAge := 0;
+END_IF;
+
+IF NOT MetalRequest THEN
+MetalRequestAge := 0;
+END_IF;
+
+(* ---------------------------------------------------------
+Default outputs and status
+--------------------------------------------------------- *)
+
+PalletGenerationBelt := FALSE;
+PalletDispatchBelt := FALSE;
+
+BlueLoadGrant := FALSE;
+GreenLoadGrant := FALSE;
+MetalLoadGrant := FALSE;
+
+DispatcherBusy := State <> 0;
+QueueFull := QueueCount >= QUEUE_SIZE;
+
+(* ---------------------------------------------------------
+Pallet-generation timer
+--------------------------------------------------------- *)
+
+GenerationTimer(
+IN := State = 2,
+PT := PalletGenerationTime
+);
+
+(* ---------------------------------------------------------
+Pallet loading and dispatch state machine
+--------------------------------------------------------- *)
 
 CASE State OF
 
-    0: // Wait for product
-        PivotArmCommand := FALSE;
-		ArmBeltRun := FALSE;
-        BufferBeltRun := FALSE;
 
-        LoadingBusy := FALSE;
-        RequestPallet := FALSE;
+(* =====================================================
+   0: Select the oldest requesting loading lane
+   ===================================================== *)
+0:
+    ActiveDestination := 0;
 
-        SortTimer(IN := FALSE);
-        LoadTimer(IN := FALSE);
+    IF Enable AND NOT QueueFull THEN
 
-        IF Enable AND PartEdge.Q AND BufferedCount < TargetCount THEN
-            State := 1;
+        SelectedDestination := 0;
+        OldestRequestAge := 0;
+
+        (* Evaluate the blue loading request. *)
+        IF BlueRequest THEN
+            SelectedDestination := COLOR_BLUE;
+            OldestRequestAge := BlueRequestAge;
         END_IF;
 
-
-    1: // Sort product into this buffer
-        PivotArmCommand := TRUE;
-        BufferBeltRun := FALSE;
-		ArmBeltRun := TRUE;
-
-        SortTimer(
-            IN := TRUE,
-            PT := SortTime
-        );
-
-        IF SortTimer.Q THEN
-            SortTimer(IN := FALSE);
-
-            PivotArmCommand := FALSE;
-            BufferBeltRun := FALSE;
-
-            BufferedCount := BufferedCount + 1;
-
-            IF BufferedCount >= TargetCount THEN
-                State := 2;
-            ELSE
-                State := 0;
+        (* Evaluate the green loading request. *)
+        IF GreenRequest THEN
+            IF (SelectedDestination = 0)
+                OR (GreenRequestAge > OldestRequestAge)
+            THEN
+                SelectedDestination := COLOR_GREEN;
+                OldestRequestAge := GreenRequestAge;
             END_IF;
         END_IF;
 
-
-    2: // Buffer full; request pallet
-        PivotArmCommand := FALSE;
-		ArmBeltRun := FALSE;
-        BufferBeltRun := FALSE;
-
-        LoadingBusy := FALSE;
-        RequestPallet := TRUE;
-
-        IF LoadPermission AND PalletInPosition THEN
-            State := 3;
+        (* Evaluate the metal loading request. *)
+        IF MetalRequest THEN
+            IF (SelectedDestination = 0)
+                OR (MetalRequestAge > OldestRequestAge)
+            THEN
+                SelectedDestination := COLOR_METAL;
+                OldestRequestAge := MetalRequestAge;
+            END_IF;
         END_IF;
 
+        IF SelectedDestination <> 0 THEN
+            ActiveDestination := SelectedDestination;
+            State := 1;
+        END_IF;
 
-    3: // Load products onto pallet
-        PivotArmCommand := FALSE;
-        BufferBeltRun := TRUE;
-		ArmBeltRun := FALSE;
-        LoadingBusy := TRUE;
-        RequestPallet := FALSE;
+    END_IF;
 
-        LoadTimer(
-            IN := TRUE,
-            PT := LoadTime
-        );
 
-        IF LoadTimer.Q THEN
-            LoadTimer(IN := FALSE);
+(* =====================================================
+   1: Wait for the previous pallet to clear the belt
+   ===================================================== *)
+1:
+    IF DispatchBeltClear THEN
+        State := 2;
 
-            BufferBeltRun := FALSE;
-            LoadingBusy := FALSE;
+    ELSE
+        PalletDispatchBelt := TRUE;
+    END_IF;
 
-            BufferedCount := 0;
-            BatchComplete := TRUE;
+
+(* =====================================================
+   2: Generate one empty pallet
+   ===================================================== *)
+2:
+    PalletGenerationBelt := TRUE;
+
+    IF GenerationTimer.Q THEN
+        State := 3;
+
+        (* A pallet has entered the dispatch system.
+           Keep this false until the exit sensor detects it. *)
+        DispatchBeltClear := FALSE;
+    END_IF;
+
+
+(* =====================================================
+   3: Move the pallet to the selected loading lane
+   ===================================================== *)
+3:
+    PalletDispatchBelt := TRUE;
+
+    CASE ActiveDestination OF
+
+        COLOR_BLUE:
+            IF BluePalletPos THEN
+                State := 4;
+            END_IF;
+
+        COLOR_GREEN:
+            IF GreenPalletPos THEN
+                State := 4;
+            END_IF;
+
+        COLOR_METAL:
+            IF MetalPalletPos THEN
+                State := 4;
+            END_IF;
+
+        ELSE
+            ActiveDestination := 0;
             State := 0;
-        END_IF;
+
+    END_CASE;
+
+
+(* =====================================================
+   4: Grant loading permission to the selected lane
+   ===================================================== *)
+4:
+    CASE ActiveDestination OF
+
+        (* -------------------------------------------------
+           Blue loading lane
+           ------------------------------------------------- *)
+        COLOR_BLUE:
+            BlueLoadGrant := TRUE;
+
+            IF BlueBatchComplete THEN
+                IF QueueCount < QUEUE_SIZE THEN
+
+                    PalletColorQueue[QueueTail] := COLOR_BLUE;
+
+                    QueueTail := QueueTail + 1;
+
+                    IF QueueTail >= QUEUE_SIZE THEN
+                        QueueTail := 0;
+                    END_IF;
+
+                    QueueCount := QueueCount + 1;
+                    State := 5;
+
+                ELSE
+                    QueueFull := TRUE;
+                END_IF;
+            END_IF;
+
+
+        (* -------------------------------------------------
+           Green loading lane
+           ------------------------------------------------- *)
+        COLOR_GREEN:
+            GreenLoadGrant := TRUE;
+
+            IF GreenBatchComplete THEN
+                IF QueueCount < QUEUE_SIZE THEN
+
+                    PalletColorQueue[QueueTail] := COLOR_GREEN;
+
+                    QueueTail := QueueTail + 1;
+
+                    IF QueueTail >= QUEUE_SIZE THEN
+                        QueueTail := 0;
+                    END_IF;
+
+                    QueueCount := QueueCount + 1;
+                    State := 5;
+
+                ELSE
+                    QueueFull := TRUE;
+                END_IF;
+            END_IF;
+
+
+        (* -------------------------------------------------
+           Metal loading lane
+           ------------------------------------------------- *)
+        COLOR_METAL:
+            MetalLoadGrant := TRUE;
+
+            IF MetalBatchComplete THEN
+                IF QueueCount < QUEUE_SIZE THEN
+
+                    PalletColorQueue[QueueTail] := COLOR_METAL;
+
+                    QueueTail := QueueTail + 1;
+
+                    IF QueueTail >= QUEUE_SIZE THEN
+                        QueueTail := 0;
+                    END_IF;
+
+                    QueueCount := QueueCount + 1;
+                    State := 5;
+
+                ELSE
+                    QueueFull := TRUE;
+                END_IF;
+            END_IF;
+
+
+        ELSE
+            ActiveDestination := 0;
+            State := 0;
+
+    END_CASE;
+
+
+(* =====================================================
+   5: Move the loaded pallet to the dispatch exit
+   ===================================================== *)
+5:
+    PalletDispatchBelt := TRUE;
+
+    IF ExitSensorEdge.Q THEN
+        PalletDispatchBelt := FALSE;
+
+        (* Update request priorities after one completed
+           dispatch cycle.
+
+           The serviced lane returns to age zero.
+           Other requesting lanes increase by one. *)
+        CASE ActiveDestination OF
+
+            COLOR_BLUE:
+                BlueRequestAge := 0;
+
+                IF GreenRequest THEN
+                    GreenRequestAge := GreenRequestAge + 1;
+                END_IF;
+
+                IF MetalRequest THEN
+                    MetalRequestAge := MetalRequestAge + 1;
+                END_IF;
+
+
+            COLOR_GREEN:
+                GreenRequestAge := 0;
+
+                IF BlueRequest THEN
+                    BlueRequestAge := BlueRequestAge + 1;
+                END_IF;
+
+                IF MetalRequest THEN
+                    MetalRequestAge := MetalRequestAge + 1;
+                END_IF;
+
+
+            COLOR_METAL:
+                MetalRequestAge := 0;
+
+                IF BlueRequest THEN
+                    BlueRequestAge := BlueRequestAge + 1;
+                END_IF;
+
+                IF GreenRequest THEN
+                    GreenRequestAge := GreenRequestAge + 1;
+                END_IF;
+
+        END_CASE;
+
+        ActiveDestination := 0;
+        State := 0;
+    END_IF;
+
 
 END_CASE;
 
+(* ---------------------------------------------------------
+Reset handling
+--------------------------------------------------------- *)
+
 IF Reset THEN
-    State := 0;
-    BufferedCount := 0;
+State := 0;
+ActiveDestination := 0;
+SelectedDestination := 0;
 
-    PivotArmCommand := FALSE;
-	ArmBeltRun := FALSE;
-    BufferBeltRun := FALSE;
 
-    BufferReady := FALSE;
-    RequestPallet := FALSE;
-    LoadingBusy := FALSE;
-    BatchComplete := FALSE;
+PalletGenerationBelt := FALSE;
+PalletDispatchBelt := FALSE;
 
-    SortTimer(IN := FALSE);
-    LoadTimer(IN := FALSE);
+BlueLoadGrant := FALSE;
+GreenLoadGrant := FALSE;
+MetalLoadGrant := FALSE;
+
+DispatcherBusy := FALSE;
+DispatchBeltClear := TRUE;
+
+BlueRequestAge := 0;
+GreenRequestAge := 0;
+MetalRequestAge := 0;
+
+
 END_IF;
