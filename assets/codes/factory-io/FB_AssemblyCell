@@ -1,0 +1,694 @@
+FUNCTION_BLOCK FB_AssemblyCell
+
+VAR_INPUT
+    // Basic control
+    Enable : BOOL;
+    Reset : BOOL;
+
+    // Pair arrival sensors at assembly cell
+    LidDetected : BOOL;
+    BaseDetected : BOOL;
+
+    // Clamp feedback
+    LidClampDown : BOOL;
+    BaseClampDown : BOOL;
+
+    LidClampLocked : BOOL;
+    BaseClampLocked : BOOL;
+
+    // Pick-and-place analog feedback
+    PickXPosition : REAL;   // 0-10 V actual X position
+    PickZPosition : REAL;   // 0-10 V actual Z position
+
+    // Pick-and-place motion feedback
+    PickMovingX : BOOL;
+    PickMovingZ : BOOL;
+
+    // Pick-and-place item detection
+    PickDetected : BOOL;
+
+    // Timing
+    FeedTime : TIME := T#1S;
+    ClearTime : TIME := T#2S;
+    SuctionCheckTime : TIME := T#300MS;
+    ReleaseCheckTime : TIME := T#300MS;
+	AssemblyBeltTime : TIME := T#1000MS;
+	PlaceTimeoutTime : TIME := T#1500MS;
+	
+	PairTimeOut : TIME := T#2S;
+	PairResetTime : TIME := T#35S;
+	
+	BluePairResetting : BOOL;
+	GreenPairResetting : BOOL;
+	MetalPairResetting : BOOL;
+END_VAR
+
+
+VAR_OUTPUT
+    // Dispatcher status
+    ReadyForPair : BOOL;
+    Busy : BOOL;
+    Done : BOOL;
+
+    // Stop blades
+    // TRUE  = blade up / stop part
+    // FALSE = blade down / release part
+    LidStopBlade : BOOL;
+    BaseStopBlade : BOOL;
+
+    // Feeder belts
+    LidFeederRun : BOOL;
+    BaseFeederRun : BOOL;
+
+    // Clamp commands
+    LidClampRaiseCmd : BOOL;
+    BaseClampRaiseCmd : BOOL;
+
+    LidClampLockCmd : BOOL;
+    BaseClampLockCmd : BOOL;
+
+    // Pick-and-place commands
+    PickXSetPoint : REAL;
+    PickZSetPoint : REAL;
+    PickGrabCmd : BOOL;
+
+    // Debug / HMI
+    State : INT;
+	
+	AssembReset : BOOL := FALSE;
+END_VAR
+
+
+VAR
+    FeedTimer : TON;
+    ClearTimer : TON;
+	AssemblyBeltTimer : TON;
+    SuctionTimer : TON;
+    ReleaseTimer : TON;
+	PlaceTimeoutTimer : TON;
+	
+	PairTimerOut : TON;
+	PairResetTimer : TON;
+
+    AtPickup : BOOL;
+    AtPlace : BOOL;
+    AtHome : BOOL;
+	AtMedium : BOOL;
+	
+	PairResetting : BOOL := false;
+END_VAR
+
+
+VAR CONSTANT
+    // Tune these values in Factory I/O
+    PICK_X : REAL := 0;
+    PICK_Z : REAL := 9.3;
+
+    PLACE_X : REAL := 10;
+    PLACE_Z : REAL := 8.9;
+	
+	MediumX : REAL := 10;
+    MediumZ : REAL := 0.0;
+
+    HOME_X : REAL := 0;
+    HOME_Z : REAL := 0;
+
+    POSITION_TOLERANCE : REAL := 0.05;
+END_VAR
+
+
+
+
+
+// ------------------------------------------------------------
+// Position checks
+// ------------------------------------------------------------
+
+AtPickup :=
+    ABS(PickXPositionV - PICK_X) <= POSITION_TOLERANCE
+    AND ABS(PickZPositionV - PICK_Z) <= POSITION_TOLERANCE;
+// Motion-status checks intentionally disabled for pickup detection:
+// AND NOT PickMovingX
+// AND NOT PickMovingZ
+
+AtPlace :=
+    ABS(PickXPositionV - PLACE_X) <= POSITION_TOLERANCE
+    AND ABS(PickZPositionV - PLACE_Z) <= POSITION_TOLERANCE;
+// Motion-status checks intentionally disabled for place detection:
+// AND NOT PickMovingX
+// AND NOT PickMovingZ
+
+AtHome :=
+    ABS(PickXPositionV - HOME_X) <= POSITION_TOLERANCE
+    AND ABS(PickZPositionV - HOME_Z) <= POSITION_TOLERANCE
+    AND NOT PickMovingX
+    AND NOT PickMovingZ;
+
+AtMedium :=
+    ABS(PickXPositionV - MediumX) <= POSITION_TOLERANCE
+    AND ABS(PickZPositionV - MediumZ) <= POSITION_TOLERANCE
+    AND NOT PickMovingX
+    AND NOT PickMovingZ;
+	
+	
+// Pair reset detection	
+PairResetting :=
+    BluePairResetting
+    OR GreenPairResetting
+    OR MetalPairResetting;
+
+
+// ------------------------------------------------------------
+// Default outputs
+// ------------------------------------------------------------
+
+ReadyForPair := FALSE;
+Busy := TRUE;
+Done := FALSE;
+
+// Default safe blade position: blade up, stop parts
+LidStopBlade := TRUE;
+BaseStopBlade := TRUE;
+
+// Default belts off
+LidFeederRun := FALSE;
+BaseFeederRun := FALSE;
+
+// Default clamps released/raised
+LidClampRaiseCmd := TRUE;
+BaseClampRaiseCmd := TRUE;
+LidClampLockCmd := FALSE;
+BaseClampLockCmd := FALSE;
+
+// Default pick command: stay home, suction off
+PickXSetPoint := HOME_X;
+PickZSetPoint := HOME_Z;
+PickGrabCmd := FALSE;
+
+
+// ------------------------------------------------------------
+// Reset / disable handling
+// ------------------------------------------------------------
+
+IF Reset OR NOT Enable THEN
+    State := 0;
+END_IF;
+
+PlaceTimeoutTimer(
+    IN := Enable AND (State = 100) AND NOT AtPlace,
+    PT := PlaceTimeoutTime
+);
+
+PairTimerOut(
+    IN := Enable AND (State = 0)
+        AND ((LidDetected) OR (baseDetected))
+        AND NOT ((LidDetected) AND (baseDetected)),
+    PT := PairTimeOut
+);
+
+PairResetTimer(
+    IN := Enable AND (State = 300),
+    PT := PairResetTime
+);
+
+// ------------------------------------------------------------
+// High-priority incomplete-pair recovery
+// ------------------------------------------------------------
+IF Enable
+    AND PairResetting
+    AND (State <> 300)
+THEN
+    State := 300;
+END_IF;
+
+
+// ------------------------------------------------------------
+// Main assembly sequence
+// ------------------------------------------------------------
+
+CASE State OF
+
+    0: // Idle / ready to receive next pair
+        Busy := FALSE;
+        ReadyForPair := TRUE;
+
+        PairResetting := FALSE;
+
+        LidStopBlade := TRUE;    // blade up, hold lid
+        BaseStopBlade := TRUE;   // blade up, hold base
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+        PickGrabCmd := FALSE;
+		
+		AssembReset := FALSE;
+
+        FeedTimer(IN := FALSE, PT := FeedTime);
+        ClearTimer(IN := FALSE, PT := ClearTime);
+        SuctionTimer(IN := FALSE, PT := SuctionCheckTime);
+        ReleaseTimer(IN := FALSE, PT := ReleaseCheckTime);
+
+        IF Enable AND LidDetected AND BaseDetected THEN
+            State := 10;
+        END_IF;
+
+        IF Enable AND PairTimerOut.Q THEN
+            State := 300;
+        END_IF
+
+
+    10: // Lower both blades and feed parts into assembly cell
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidStopBlade := FALSE;    // blade down, release lid
+        BaseStopBlade := FALSE;   // blade down, release base
+
+        LidFeederRun := TRUE;
+        BaseFeederRun := TRUE;
+
+        LidClampRaiseCmd := FALSE;
+        BaseClampRaiseCmd := FALSE;
+
+        FeedTimer(IN := TRUE, PT := FeedTime);
+
+        IF FeedTimer.Q THEN
+            FeedTimer(IN := FALSE, PT := FeedTime);
+            State := 20;
+        END_IF;
+
+
+    20: // Raise stop blades again after intake
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := FALSE;
+        BaseClampRaiseCmd := FALSE;
+
+        LidStopBlade := TRUE;
+        BaseStopBlade := TRUE;
+
+        State := 30;
+
+
+    30: // Lower clamps
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := FALSE;
+        BaseClampRaiseCmd := FALSE;
+
+        State := 40;
+
+
+    40: // Wait for clamps down
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := FALSE;
+        BaseClampRaiseCmd := FALSE;
+
+        IF LidClampDownSensor AND BaseClampDownSensor THEN
+            State := 50;
+        END_IF;
+
+
+    50: // Lock clamps
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := FALSE;
+        BaseClampRaiseCmd := FALSE;
+
+        LidClampLockCmd := TRUE;
+        BaseClampLockCmd := TRUE;
+
+        State := 60;
+
+
+    60: // Wait for clamp lock confirmation
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := FALSE;
+        BaseClampRaiseCmd := FALSE;
+
+        LidClampLockCmd := TRUE;
+        BaseClampLockCmd := TRUE;
+
+        IF LidClampLockedSensor AND BaseClampLockedSensor THEN
+            State := 69;
+        END_IF;
+
+    69: // Run assembly belts before pickup
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        LidFeederRun := TRUE;
+        BaseFeederRun := TRUE;
+
+        AssemblyBeltTimer(IN := TRUE, PT := AssemblyBeltTime);
+
+        IF AssemblyBeltTimer.Q THEN
+            AssemblyBeltTimer(IN := FALSE, PT := AssemblyBeltTime);
+            State := 70;
+        END_IF;
+
+
+    70: // Move pick unit to pickup coordinate
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidFeederRun := FALSE;
+        BaseFeederRun := FALSE;
+
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := PICK_X;
+        PickZSetPoint := PICK_Z;
+        PickGrabCmd := FALSE;
+
+        IF AtPickup THEN
+            State := 80;
+        END_IF;
+
+
+    80: // Turn suction on / grab part
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := PICK_X;
+        PickZSetPoint := PICK_Z;
+        PickGrabCmd := TRUE;
+
+        SuctionTimer(IN := TRUE, PT := SuctionCheckTime);
+
+        IF SuctionTimer.Q THEN
+            SuctionTimer(IN := FALSE, PT := SuctionCheckTime);
+            State := 99;
+        END_IF;
+
+
+    90: // Confirm part detected on pick
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := PICK_X;
+        PickZSetPoint := PICK_Z;
+        PickGrabCmd := TRUE;
+
+        IF PickDetected THEN
+            State := 100;
+        END_IF;
+
+    99: // Move through intermediate coordinate before placement
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := MediumX;
+        PickZSetPoint := MediumZ;
+        PickGrabCmd := TRUE;
+
+        IF AtMedium THEN
+            State := 100;
+        END_IF;
+
+
+    100: // Move pick unit to place coordinate
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := PLACE_X;
+        PickZSetPoint := PLACE_Z;
+        PickGrabCmd := TRUE;
+
+        // Normal successful placement
+        IF AtPlace THEN
+            State := 110;
+
+            // Place position was not reached within one second
+        ELSIF PlaceTimeoutTimer.Q THEN
+            State := 200;
+        END_IF;
+
+
+    110: // Release picked part
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := PLACE_X;
+        PickZSetPoint := PLACE_Z;
+        PickGrabCmd := FALSE;
+
+        ReleaseTimer(IN := TRUE, PT := ReleaseCheckTime);
+
+        IF ReleaseTimer.Q THEN
+            ReleaseTimer(IN := FALSE, PT := ReleaseCheckTime);
+            State := 130;
+        END_IF;
+
+
+    130: // Send pick unit home
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+        PickGrabCmd := FALSE;
+
+        IF AtHome THEN
+            State := 140;
+        END_IF;
+
+
+    140: // Unlock clamps
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+        PickGrabCmd := FALSE;
+
+        State := 160;
+
+    160: // Run both belts to clear assembly cell
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidStopBlade := TRUE;
+        BaseStopBlade := TRUE;
+
+        LidFeederRun := TRUE;
+        BaseFeederRun := TRUE;
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+        PickGrabCmd := FALSE;
+
+        ClearTimer(IN := TRUE, PT := ClearTime);
+
+        IF ClearTimer.Q THEN
+            ClearTimer(IN := FALSE, PT := ClearTime);
+            State := 170;
+        END_IF;
+
+
+    170: // Done pulse
+        Busy := FALSE;
+        ReadyForPair := FALSE;
+        Done := TRUE;
+
+        LidStopBlade := TRUE;
+        BaseStopBlade := TRUE;
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+        PickGrabCmd := FALSE;
+
+        State := 0;
+
+    200: // Recovery: return home while keeping the part grabbed
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        LidFeederRun := FALSE;
+        BaseFeederRun := FALSE;
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+
+        // Keep suction active so the part is not dropped
+        PickGrabCmd := TRUE;
+
+        IF AtHome THEN
+            State := 210;
+        END_IF;
+
+
+    210: // Release the recovered part at the pickup coordinate
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidClampRaiseCmd := TRUE;
+        BaseClampRaiseCmd := TRUE;
+
+        LidClampLockCmd := FALSE;
+        BaseClampLockCmd := FALSE;
+
+        PickXSetPoint := PICK_X;
+        PickZSetPoint := PICK_Z;
+        PickGrabCmd := FALSE;
+
+        ReleaseTimer(
+            IN := TRUE,
+            PT := ReleaseCheckTime
+        );
+
+        IF ReleaseTimer.Q THEN
+            ReleaseTimer(
+                IN := FALSE,
+                PT := ReleaseCheckTime
+            );
+
+            State := 220;
+        END_IF;
+
+
+    220: // Run belts after recovery
+        Busy := TRUE;
+        ReadyForPair := FALSE;
+
+        LidStopBlade := FALSE;
+        BaseStopBlade := FALSE;
+
+        LidFeederRun := TRUE;
+        BaseFeederRun := TRUE;
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+        PickGrabCmd := FALSE;
+
+        ClearTimer(
+            IN := TRUE,
+            PT := ClearTime
+        );
+
+        IF ClearTimer.Q THEN
+            ClearTimer(
+                IN := FALSE,
+                PT := ClearTime
+            );
+
+            State := 230;
+        END_IF;
+
+
+    230: // Recovery complete
+        Busy := FALSE;
+        ReadyForPair := FALSE;
+        Done := TRUE;
+
+        LidStopBlade := TRUE;
+        BaseStopBlade := TRUE;
+
+        LidFeederRun := FALSE;
+        BaseFeederRun := FALSE;
+
+        PickXSetPoint := HOME_X;
+        PickZSetPoint := HOME_Z;
+        PickGrabCmd := FALSE;
+
+        State := 0;
+
+    300: // Clear an incomplete pair after timeout or pair reset
+    Busy := TRUE;
+    ReadyForPair := FALSE;
+
+    // Lower both blades and force everything through.
+    LidStopBlade := FALSE;
+    BaseStopBlade := FALSE;
+
+    LidFeederRun := TRUE;
+    BaseFeederRun := TRUE;
+
+    // Keep the pick unit safely at home.
+    PickXSetPoint := HOME_X;
+    PickZSetPoint := HOME_Z;
+    PickGrabCmd := FALSE;
+
+    // Finish only after the clearing time has elapsed
+    // and all external pair-reset requests have cleared.
+    IF PairResetTimer.Q
+        AND NOT PairResetting
+    THEN
+		AssembReset := TRUE;
+        State := 0;
+    END_IF;
+
+
+ELSE
+    State := 0;
+
+END_CASE;
+
+
+
