@@ -1,0 +1,118 @@
+FUNCTION_BLOCK FB_BufferLane
+VAR_INPUT
+    Enable          : BOOL;
+    DiffuseSensor   : BOOL;
+    ReleaseCommand  : BOOL := FALSE;
+    Reset           : BOOL;
+	AssembVision : BOOL;
+    ReleaseTime     : TIME;
+	
+	ForcedRelease : BOOL := FALSE;
+END_VAR
+
+VAR_OUTPUT
+    BeltRun         : BOOL;
+    StopBlade       : BOOL;
+	ReleasedCount : INT := 0;
+
+    PartWaiting     : BOOL;
+    ReleaseDone     : BOOL := FALSE;   (* one-scan pulse *)
+    State           : INT;
+END_VAR
+
+VAR
+    DiffuseEdge     : R_TRIG;
+    ReleaseTimer    : TON;
+	VisionEdge : R_TRIG;
+END_VAR
+
+
+
+
+
+DiffuseEdge(CLK := DiffuseSensor);
+VisionEdge(CLK := AssembVision);
+
+ReleaseTimer(
+    IN := (State = 2),
+    PT := ReleaseTime
+);
+
+(* Default pulse output *)
+ReleaseDone := FALSE;
+
+
+(* Reset handling *)
+IF Reset OR NOT Enable THEN
+    State := 0;
+    ReleasedCount := 0;
+
+(* Forced release has priority over normal operation *)
+ELSIF ForcedRelease AND (State <> 3) THEN
+    State := 3;
+END_IF;
+
+
+CASE State OF
+
+    0:
+        (* Run belt until a part reaches the diffuse sensor *)
+        BeltRun := Enable;
+        StopBlade := TRUE;
+        PartWaiting := FALSE;
+
+        IF Enable AND DiffuseEdge.Q THEN
+            State := 1;
+        END_IF;
+
+
+    1:
+        (* Part is staged and waiting *)
+        BeltRun := FALSE;
+        StopBlade := TRUE;
+        PartWaiting := TRUE;
+
+        IF Enable AND ReleaseCommand THEN
+            State := 2;
+        END_IF;
+
+
+    2:
+        (* Release the staged part *)
+        BeltRun := TRUE;
+        StopBlade := FALSE;
+        PartWaiting := FALSE;
+
+        IF VisionEdge.Q THEN
+            ReleasedCount := ReleasedCount + 1;
+            ReleaseDone := TRUE;
+        END_IF;
+
+        IF ReleaseTimer.Q THEN
+            State := 0;
+        END_IF;
+
+
+    3:
+        (* Forced recovery:
+           run the belt with the blade lowered until the
+           upstream controller removes ForcedRelease. *)
+        BeltRun := TRUE;
+        StopBlade := FALSE;
+        PartWaiting := FALSE;
+		
+		ReleasedCount := 0;
+
+        IF NOT ForcedRelease THEN
+            State := 0;
+        END_IF;
+
+
+ELSE
+    State := 0;
+
+    BeltRun := FALSE;
+    StopBlade := TRUE;
+    PartWaiting := FALSE;
+
+END_CASE;
