@@ -1,0 +1,371 @@
+FUNCTION_BLOCK FB_StackerCrane
+
+VAR_INPUT
+    Enable : BOOL;
+    Reset  : BOOL;
+
+    // Load entrance
+    EntranceSensor : BOOL;
+	LoadReady : BOOL;
+
+    // Fork position feedback
+    ForkRightLimit  : BOOL;
+    ForkMiddleLimit : BOOL;
+    ForkLeftLimit   : BOOL;
+
+    // Crane motion feedback
+    CraneMovingX : BOOL;
+    CraneMovingZ : BOOL;
+
+    
+END_VAR
+
+
+VAR_IN_OUT
+    // TRUE = occupied, FALSE = vacant
+    StorageOccupied : ARRAY[1..54] OF BOOL;
+END_VAR
+
+
+VAR_OUTPUT
+    // Entrance conveyor
+    FeedBelt : BOOL;
+
+    // Fork horizontal motion
+    MoveForkRight : BOOL;
+    MoveForkLeft  : BOOL;
+
+    // Fork vertical motion
+    RaiseFork : BOOL;
+
+    // Crane positioning command
+    CraneTargetPosition : INT;
+    CraneMoveCommand    : BOOL;
+
+    // Status
+    Busy            : BOOL;
+    CycleDone       : BOOL;
+    StorageFull     : BOOL;
+    SelectedStorage : INT;
+    State           : INT;
+	
+END_VAR
+
+
+VAR
+    EntranceEdge : R_TRIG;
+	
+	FeederTimer : TON;
+
+    LiftTimer       : TON;
+    ForkExtendTimer : TON;
+    ForkLowerTimer  : TON;
+
+
+    VacancyFound : BOOL;
+    MoveSeen     : BOOL;
+    i            : INT;
+END_VAR
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------
+// Entrance sensor edge detection
+// ------------------------------------------------------------
+
+EntranceEdge(CLK := EntranceSensor);
+
+// ------------------------------------------------------------
+// Sequence timers
+// ------------------------------------------------------------
+
+// Time allowed for the incoming load to reach the crane.
+FeederTimer(
+IN := State = 10,
+PT := T#1S
+);
+
+// Time allowed for the fork lift motion.
+LiftTimer(
+IN := State = 40,
+PT := T#2S
+);
+
+// Delay before extending the fork after crane travel has stopped.
+ForkExtendTimer(
+IN := State = 80
+AND NOT CraneMovingX
+AND NOT CraneMovingZ,
+PT := T#5S
+);
+
+// Delay for lowering the fork after placement.
+ForkLowerTimer(
+IN := State = 90
+AND NOT CraneMovingX
+AND NOT CraneMovingZ,
+PT := T#2S
+);
+
+// ------------------------------------------------------------
+// Default outputs
+// ------------------------------------------------------------
+
+FeedBelt         := FALSE;
+MoveForkRight    := FALSE;
+MoveForkLeft     := FALSE;
+CraneMoveCommand := FALSE;
+
+Busy      := State <> 0;
+CycleDone := FALSE;
+
+// ------------------------------------------------------------
+// Reset handling
+// ------------------------------------------------------------
+
+IF Reset THEN
+State := 0;
+
+
+// Clear the occupancy status of all storage positions.
+FOR i := 1 TO 54 DO
+    StorageOccupied[i] := FALSE;
+END_FOR;
+
+RaiseFork := FALSE;
+
+CraneTargetPosition := 55;
+SelectedStorage := 0;
+
+VacancyFound := FALSE;
+MoveSeen := FALSE;
+
+StorageFull := FALSE;
+
+
+ELSE
+
+
+// --------------------------------------------------------
+// Storage sequence
+// --------------------------------------------------------
+
+CASE State OF
+
+    // ====================================================
+    // 0: Idle at the crane home position
+    // ====================================================
+    0:
+        Busy := FALSE;
+
+        FeedBelt      := FALSE;
+        MoveForkRight := FALSE;
+        MoveForkLeft  := FALSE;
+        RaiseFork     := FALSE;
+
+        CraneTargetPosition := 55;
+
+        SelectedStorage := 0;
+        VacancyFound := FALSE;
+        MoveSeen := FALSE;
+
+        IF Enable AND EntranceEdge.Q THEN
+            StorageFull := FALSE;
+            State := 10;
+        END_IF;
+
+
+    // ====================================================
+    // 10: Feed the incoming pallet into the crane
+    // ====================================================
+    10:
+        IF NOT LoadReady THEN
+            FeedBelt := TRUE;
+
+            RaiseFork := FALSE;
+
+            MoveForkRight := TRUE;
+
+        ELSE
+            IF FeederTimer.Q THEN
+                FeedBelt := FALSE;
+                MoveForkRight := FALSE;
+                state := 40;
+            END_IF
+        END_IF
+
+
+    // ====================================================
+    // 40: Raise the fork with the incoming load
+    // ====================================================
+    40:
+        RaiseFork := TRUE;
+
+        IF LiftTimer.Q THEN
+            state := 50;
+        END_IF;
+
+
+    // ====================================================
+    // 50: Find the next vacant storage position
+    // ====================================================
+    50:
+        RaiseFork := TRUE;
+
+        VacancyFound := FALSE;
+        SelectedStorage := 0;
+
+        // Select the first available storage position.
+        FOR i := 1 TO 54 DO
+            IF NOT StorageOccupied[i] AND NOT VacancyFound THEN
+                SelectedStorage := i;
+                VacancyFound := TRUE;
+            END_IF;
+        END_FOR;
+
+        IF VacancyFound THEN
+            CraneTargetPosition := SelectedStorage;
+            State := 60;
+
+        ELSE
+            StorageFull := TRUE;
+            State := 900;
+        END_IF;
+
+
+    // ====================================================
+    // 60: Wait for crane travel toward storage to begin
+    // ====================================================
+    60:
+        RaiseFork := TRUE;
+        CraneTargetPosition := SelectedStorage;
+
+        IF CraneMovingX OR CraneMOvingZ THEN
+            state := 80;
+        END_IF;
+
+
+    // ====================================================
+    // 80: Extend the fork into the storage position
+    // ====================================================
+    80:
+        CraneTargetPosition := SelectedStorage;
+        RaiseFork := TRUE;
+
+        IF NOT CraneMovingX AND NOT CraneMovingZ THEN
+            MoveForkLeft := TRUE;
+
+            IF ForkExtendTimer.Q THEN
+                state := 90;
+            END_IF;
+        END_IF
+
+
+    // ====================================================
+    // 90: Lower the fork and place the load
+    // ====================================================
+    90:
+        CraneTargetPosition := SelectedStorage;
+        RaiseFork := FALSE;
+        MoveForkLeft := TRUE;
+
+        IF ForkLowerTimer.Q THEN
+            state := 100;
+        END_IF;
+
+
+    // ====================================================
+    // 100: Retract the fork after placing the load
+    // ====================================================
+    100:
+        RaiseFork := FALSE;
+        MoveForkLeft := FALSE;
+
+        // Mark the selected position as occupied after placement.
+        IF SelectedStorage >= 1
+           AND SelectedStorage <= 54 THEN
+            StorageOccupied[SelectedStorage] := TRUE;
+        END_IF;
+
+        IF ForkMiddleLimit THEN
+            CraneTargetPosition := 55;
+            State := 120;
+        END_IF;
+
+
+    // ====================================================
+    // 120: Command the crane to return home
+    // ====================================================
+    120:
+        RaiseFork := FALSE;
+        CraneTargetPosition := 55;
+
+        IF CraneMovingX OR CraneMovingZ THEN
+            MoveSeen := TRUE;
+            State := 125;
+        END_IF;
+
+
+    // ====================================================
+    // 125: Wait until the crane arrives home
+    // ====================================================
+    125:
+        RaiseFork := FALSE;
+        CraneTargetPosition := 55;
+
+        IF MoveSeen
+           AND NOT CraneMovingX
+           AND NOT CraneMovingZ THEN
+
+            MoveSeen := FALSE;
+            State := 130;
+        END_IF;
+
+
+    // ====================================================
+    // 130: Complete the storage cycle
+    // ====================================================
+    130:
+        RaiseFork := FALSE;
+        CraneTargetPosition := 55;
+
+        CycleDone := TRUE;
+        SelectedStorage := 0;
+
+        State := 0;
+
+
+    // ====================================================
+    // 900: No vacant storage positions available
+    // ====================================================
+    900:
+        StorageFull := TRUE;
+
+        RaiseFork := TRUE;
+
+        MoveForkLeft  := FALSE;
+        MoveForkRight := FALSE;
+        FeedBelt      := FALSE;
+
+        // Hold the load until space becomes available.
+        // When enabled, scan the storage array again.
+        IF Enable THEN
+            State := 50;
+        END_IF;
+
+
+    // ====================================================
+    // Invalid-state recovery
+    // ====================================================
+    ELSE
+        State := 0;
+
+END_CASE;
+
+
+END_IF;
