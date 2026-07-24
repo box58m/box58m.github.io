@@ -1,0 +1,379 @@
+FUNCTION_BLOCK FB_PairDispatcher
+VAR_INPUT
+    Enable : BOOL;
+    Reset  : BOOL;
+
+    // Assembly-cell handshake
+    AssemblyReady  : BOOL;
+    AssemblyDone   : BOOL;
+    PairResetting  : BOOL;
+
+    // Number of complete pairs available
+    BlueAvailable  : INT;
+    GreenAvailable : INT;
+    MetalAvailable : INT;
+
+    // Both buffer lanes must contain a waiting part
+    BlueLidWaiting   : BOOL;
+    BlueBaseWaiting  : BOOL;
+
+    GreenLidWaiting  : BOOL;
+    GreenBaseWaiting : BOOL;
+
+    MetalLidWaiting  : BOOL;
+    MetalBaseWaiting : BOOL;
+
+    // Completion signals from the pair-release FBs
+    BluePairReleased  : BOOL;
+    GreenPairReleased : BOOL;
+    MetalPairReleased : BOOL;
+	
+	BluePairResetting : BOOL;
+	GreenPairResetting : BOOL;
+	MetalPairResetting : BOOL;
+	
+	ResetLockoutTime : TIME := T#30S;
+	
+	AssembReset : BOOL;
+END_VAR
+
+
+VAR_OUTPUT
+    BlueGrant  : BOOL;
+    GreenGrant : BOOL;
+    MetalGrant : BOOL;
+
+    Busy         : BOOL;
+    SelectedPair : USINT;
+
+    // Useful for HMI/debugging
+    BlueReady  : BOOL;
+    GreenReady : BOOL;
+    MetalReady : BOOL;
+
+    BlueAge  : DINT;
+    GreenAge : DINT;
+    MetalAge : DINT;
+
+    State         : USINT;
+END_VAR
+
+
+VAR
+    BestScore : INT;
+    BestAge   : DINT;
+	
+	AssemblyDispatchReady : BOOL := TRUE;
+	
+	AnyPairResetting   : BOOL;
+    ResetLockoutTimer  : TON;
+END_VAR
+
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------
+// Default grant outputs
+// ------------------------------------------------------------
+
+// Grants are state-dependent outputs. Clear all grants first,
+// then assert only the grant selected by the dispatcher.
+BlueGrant  := FALSE;
+GreenGrant := FALSE;
+MetalGrant := FALSE;
+
+// ------------------------------------------------------------
+// Combined pair-reset status
+// ------------------------------------------------------------
+
+AnyPairResetting :=
+BluePairResetting
+OR GreenPairResetting
+OR MetalPairResetting;
+
+// ------------------------------------------------------------
+// Reset lockout timer
+// ------------------------------------------------------------
+
+// State 2 prevents dispatching for 30 seconds after a pair reset.
+ResetLockoutTimer(
+IN := (State = 2),
+PT := T#30s
+);
+
+// ------------------------------------------------------------
+// Complete-pair readiness
+// ------------------------------------------------------------
+
+BlueReady :=
+(BlueAvailable > 0)
+AND BlueLidWaiting
+AND BlueBaseWaiting;
+
+GreenReady :=
+(GreenAvailable > 0)
+AND GreenLidWaiting
+AND GreenBaseWaiting;
+
+MetalReady :=
+(MetalAvailable > 0)
+AND MetalLidWaiting
+AND MetalBaseWaiting;
+
+// ------------------------------------------------------------
+// Reset and disable handling
+// ------------------------------------------------------------
+
+IF Reset OR NOT Enable THEN
+
+
+State := 0;
+SelectedPair := 0;
+Busy := FALSE;
+
+BlueAge  := 0;
+GreenAge := 0;
+MetalAge := 0;
+
+AssemblyDispatchReady := TRUE;
+
+
+ELSE
+
+
+// Restore dispatcher readiness after the assembly cycle
+// completes or the assembly reset sequence finishes.
+IF AssemblyDone OR AssembReset THEN
+    AssemblyDispatchReady := TRUE;
+END_IF;
+
+
+// Any active pair recovery immediately stops dispatching
+// and enters the timed lockout state.
+IF AnyPairResetting AND (State <> 2) THEN
+    State := 2;
+    SelectedPair := 0;
+    Busy := TRUE;
+    AssemblyDispatchReady := FALSE;
+END_IF;
+
+
+// --------------------------------------------------------
+// Dispatcher state machine
+// --------------------------------------------------------
+
+CASE State OF
+
+    // ====================================================
+    // 0: Select the best available pair
+    // ====================================================
+    0:
+        Busy := FALSE;
+        SelectedPair := 0;
+
+        BestScore := 0;
+        BestAge := -1;
+
+
+        // ------------------------------------------------
+        // Evaluate the blue pair
+        // ------------------------------------------------
+        IF BlueReady THEN
+            IF (BlueAvailable > BestScore)
+                OR
+                (
+                    (BlueAvailable = BestScore)
+                    AND (BlueAge > BestAge)
+                )
+            THEN
+                BestScore := BlueAvailable;
+                BestAge := BlueAge;
+                SelectedPair := 1;
+            END_IF;
+        END_IF;
+
+
+        // ------------------------------------------------
+        // Evaluate the green pair
+        // ------------------------------------------------
+        IF GreenReady THEN
+            IF (GreenAvailable > BestScore)
+                OR
+                (
+                    (GreenAvailable = BestScore)
+                    AND (GreenAge > BestAge)
+                )
+            THEN
+                BestScore := GreenAvailable;
+                BestAge := GreenAge;
+                SelectedPair := 2;
+            END_IF;
+        END_IF;
+
+
+        // ------------------------------------------------
+        // Evaluate the metal pair
+        // ------------------------------------------------
+        IF MetalReady THEN
+            IF (MetalAvailable > BestScore)
+                OR
+                (
+                    (MetalAvailable = BestScore)
+                    AND (MetalAge > BestAge)
+                )
+            THEN
+                BestScore := MetalAvailable;
+                BestAge := MetalAge;
+                SelectedPair := 3;
+            END_IF;
+        END_IF;
+
+
+        // ------------------------------------------------
+        // Begin the selected pair dispatch
+        // ------------------------------------------------
+        IF AssemblyDispatchReady
+            AND (SelectedPair <> 0)
+        THEN
+            AssemblyDispatchReady := FALSE;
+            State := 1;
+        END_IF;
+
+
+    // ====================================================
+    // 1: Hold the grant until the selected pair is released
+    // ====================================================
+    1:
+        Busy := TRUE;
+
+        CASE SelectedPair OF
+
+            // ------------------------------------------------
+            // Blue pair selected
+            // ------------------------------------------------
+            1:
+                BlueGrant := TRUE;
+
+                IF BluePairReleased THEN
+
+                    // Reset the age of the pair that was served.
+                    BlueAge := 0;
+
+                    // Increment the age of other ready pairs.
+                    IF GreenReady THEN
+                        GreenAge := GreenAge + 1;
+                    END_IF;
+
+                    IF MetalReady THEN
+                        MetalAge := MetalAge + 1;
+                    END_IF;
+
+                    SelectedPair := 0;
+                    State := 0;
+                END_IF;
+
+
+            // ------------------------------------------------
+            // Green pair selected
+            // ------------------------------------------------
+            2:
+                GreenGrant := TRUE;
+
+                IF GreenPairReleased THEN
+
+                    // Reset the age of the pair that was served.
+                    GreenAge := 0;
+
+                    // Increment the age of other ready pairs.
+                    IF BlueReady THEN
+                        BlueAge := BlueAge + 1;
+                    END_IF;
+
+                    IF MetalReady THEN
+                        MetalAge := MetalAge + 1;
+                    END_IF;
+
+                    SelectedPair := 0;
+                    State := 0;
+                END_IF;
+
+
+            // ------------------------------------------------
+            // Metal pair selected
+            // ------------------------------------------------
+            3:
+                MetalGrant := TRUE;
+
+                IF MetalPairReleased THEN
+
+                    // Reset the age of the pair that was served.
+                    MetalAge := 0;
+
+                    // Increment the age of other ready pairs.
+                    IF BlueReady THEN
+                        BlueAge := BlueAge + 1;
+                    END_IF;
+
+                    IF GreenReady THEN
+                        GreenAge := GreenAge + 1;
+                    END_IF;
+
+                    SelectedPair := 0;
+                    State := 0;
+                END_IF;
+
+
+            // ------------------------------------------------
+            // Invalid selection recovery
+            // ------------------------------------------------
+            ELSE
+                SelectedPair := 0;
+                Busy := FALSE;
+                State := 0;
+
+        END_CASE;
+
+
+    // ====================================================
+    // 2: Pair-reset dispatch lockout
+    // ====================================================
+    2:
+        Busy := TRUE;
+        SelectedPair := 0;
+
+        // All grants remain false because they are cleared
+        // at the beginning of every scan.
+        AssemblyDispatchReady := FALSE;
+
+        // Remain locked out for at least 30 seconds and
+        // require all pair-reset signals to clear.
+        IF ResetLockoutTimer.Q
+            AND NOT AnyPairResetting
+        THEN
+            Busy := FALSE;
+
+            // Re-enable dispatching after the assembly cell
+            // has completed its recovery sequence.
+            AssemblyDispatchReady := TRUE;
+
+            State := 0;
+        END_IF;
+
+
+    // ====================================================
+    // Invalid-state recovery
+    // ====================================================
+    ELSE
+        State := 0;
+        SelectedPair := 0;
+        Busy := FALSE;
+
+END_CASE;
+
+
+END_IF;
