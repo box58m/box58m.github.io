@@ -1,0 +1,912 @@
+PROGRAM PLC_PRG
+VAR
+
+
+	BlueLidStation  : FB_MaterialStation;
+	BlueBaseStation : FB_MaterialStation;
+
+	GrnLidStation  : FB_MaterialStation;
+	GrnBaseStation : FB_MaterialStation;
+	
+	MtlLidStation  : FB_MaterialStation;
+	MtlBaseStation : FB_MaterialStation;
+	
+	
+	BlueLidBuffer  : FB_BufferLane;
+    BlueBaseBuffer : FB_BufferLane;
+
+    BluePair       : FB_MaterialPair;
+
+    GreenLidBuffer  : FB_BufferLane;
+    GreenBaseBuffer : FB_BufferLane;
+
+    GreenPair       : FB_MaterialPair;
+	
+	MetalLidBuffer  : FB_BufferLane;
+    MetalBaseBuffer : FB_BufferLane;
+
+    MetalPair       : FB_MaterialPair;
+	
+	PairDispatcher : FB_PairDispatcher;
+
+	BlueLidAvailable : INT := 0;
+	BlueBaseAvailable: INT:= 0;
+	BluePairAvailable: INT:= 0;
+	GrnLidAvailable : INT:= 0;
+	GrnBaseAvailable: INT:= 0;
+	GrnPairAvailable: INT:= 0;
+	MtlLidAvailable : INT:= 0;
+	MtlBaseAvailable: INT:= 0;
+	MtlPairAvailable: INT:= 0;
+
+
+    BluePairGrant : BOOL;
+    GrnPairGrant : BOOL;
+    MtlPairGrant : BOOL;
+
+    SelectedPair : INT := 0; // 0 none, 1 blue, 2 green, 3 metal
+
+
+    DispatcherBusy : BOOL;
+	AssemblyReady : BOOL;
+	AssemblyBusy : BOOL;
+	AssemblyDone : BOOL;
+	
+	AssemblyCell : FB_AssemblyCell;
+	
+	
+	BlueInspection : FB_AssemblyInspection;
+	GreenInspection : FB_AssemblyInspection;
+	MetalInspection : FB_AssemblyInspection;
+	
+	BlueLoad : FB_LoadingBuffer;
+	GreenLoad : FB_LoadingBuffer;
+	MetalLoad : FB_LoadingBuffer;
+	
+	BlueLoadComplete : BOOL;
+	GreenLoadComplete : BOOL;
+	MetalLoadComplete : BOOL;
+	
+	
+	BlueLoadGrant  : BOOL;
+    GreenLoadGrant : BOOL;
+    MetalLoadGrant : BOOL;
+	
+	
+	LoadingDispatcher : FB_LoadingDispatcher;
+	LoadingDispatcherBusy  : BOOL;
+    LoadingDestination     : INT;
+    LoadingDispatcherState : INT;
+    DispatchAreaClear      : BOOL;
+	BluePalletRequest  : BOOL;
+    GreenPalletRequest : BOOL;
+    MetalPalletRequest : BOOL;
+	
+	BlueLoadingDone : BOOL;
+	GreenLoadingDone : BOOL;
+	MetalLoadingDone : BOOL;
+	
+
+    PalletTurntable : FB_PalletTurntable;
+
+    PalletColorQueue : ARRAY[0..19] OF INT;
+
+    PalletQueueHead  : INT := 0;
+    PalletQueueTail  : INT := 0;
+    PalletQueueCount : INT := 0;
+
+	QueueResetIndex : INT;
+	
+	
+
+    Crane0Stacker : FB_StackerCrane;
+    Crane1Stacker : FB_StackerCrane;
+    Crane2Stacker : FB_StackerCrane;
+
+    Crane0StorageOccupied : ARRAY[1..54] OF BOOL;
+    Crane1StorageOccupied : ARRAY[1..54] OF BOOL;
+    Crane2StorageOccupied : ARRAY[1..54] OF BOOL;
+
+    Crane0TargetPosition : INT := 55;
+    Crane1TargetPosition : INT := 55;
+    Crane2TargetPosition : INT := 55;
+
+    Crane0SelectedStorage : INT;
+    Crane1SelectedStorage : INT;
+    Crane2SelectedStorage : INT;
+
+    Crane0Busy : BOOL;
+    Crane1Busy : BOOL;
+    Crane2Busy : BOOL;
+
+    Crane0CycleDone : BOOL;
+    Crane1CycleDone : BOOL;
+    Crane2CycleDone : BOOL;
+
+    Crane0StorageFull : BOOL;
+    Crane1StorageFull : BOOL;
+    Crane2StorageFull : BOOL;
+
+    Crane0State : INT;
+    Crane1State : INT;
+    Crane2State : INT;
+
+    StackerEnable : BOOL := TRUE;
+
+
+END_VAR
+
+
+
+
+
+
+
+IF  ConveyorRunning AND EStop THEN
+
+    BC6M_2 := TRUE;
+    BC6M_3 := TRUE;
+    BC6M_4 := TRUE;
+    BC6M_7 := TRUE;
+    BC6M_8 := TRUE;
+    BC6M_9 := TRUE;
+    BC2M_4 := TRUE;
+    BC2M_13 := TRUE;
+    BC6M_1 := TRUE;
+    BC6M_6 := TRUE;
+    BC6M_0 := TRUE;
+    BC6M_5 := TRUE;
+    BC6M_10 := TRUE;
+    BC6M_11 := TRUE;
+    BC6M_12 := TRUE;
+    BC6M_13 := TRUE;
+    BC6M_14 := TRUE;
+    BC6M_15 := TRUE;
+    BC6M_16 := TRUE;
+    BC6M_17 := TRUE;
+    BCCCW_0 := TRUE;
+    BCCW_1 := TRUE;
+    BCI_0 := TRUE;
+
+    RC6M_2 := TRUE;
+    RC4M_1 := TRUE;
+
+    RC4M_2 := TRUE;
+    RC4M_3 := TRUE;
+    RC4M_4 := TRUE;
+    RC4M_5 := TRUE;
+    RC4M_6 := TRUE;
+    CRCCW_6 := TRUE;
+    CRCW_3 := TRUE;
+
+ELSE
+    BC6M_2 := FALSE;
+    BC6M_3 := FALSE;
+    BC6M_4 := FALSE;
+    BC6M_7 := FALSE;
+    BC6M_8 := FALSE;
+    BC6M_9 := FALSE;
+    BC2M_4 := FALSE;
+    BC2M_13 := FALSE;
+    BC6M_1 := FALSE;
+    BC6M_6 := FALSE;
+    BC6M_0 := FALSE;
+    BC6M_5 := FALSE;
+    BC6M_10 := FALSE;
+    BC6M_11 := FALSE;
+    BC6M_12 := FALSE;
+    BC6M_13 := FALSE;
+    BC6M_14 := FALSE;
+    BC6M_15 := FALSE;
+    BC6M_16 := FALSE;
+    BC6M_17 := FALSE;
+    BCCCW_0 := FALSE;
+    BCCW_1 := FALSE;
+    BCI_0 := FALSE;
+
+    RC6M_2 := FALSE;
+    RC4M_1 := FALSE;
+
+    RC4M_2 := FALSE;
+    RC4M_3 := FALSE;
+    RC4M_4 := FALSE;
+    RC4M_5 := FALSE;
+    RC4M_6 := FALSE;
+    CRCCW_6 := FALSE;
+    CRCW_3 := FALSE;
+
+    ConveyorRunning := FALSE;
+
+END_IF
+
+
+IF CounterReset THEN
+    ConveyorRunning := TRUE;
+END_IF
+
+// ------------------------------------------------------------
+// Material feeding and fabrication stations
+// ------------------------------------------------------------
+BlueLidStation(
+    MaterialVisible := Blue_lid_mat_vis,
+    PusherLimit := BlueLidPusherLim,
+    MachineProgress := MachineStation0Progress,
+    StationOpen := Blue_lid_open,
+    MaxQueue := 2,
+    DownStream := BlueLidAvailable,
+    ResetCounts := counterReset,
+
+    PairResetting := BluePair.PairResetting
+    );
+
+Blue_lid_mat_push := BlueLidStation.MaterialPush;
+Blue_lid_mat_feed := BlueLidStation.MaterialFeed;
+
+MachineStation0Run := BlueLidStation.MachineRun;
+MachineStation0Stop := BlueLidStation.MachineStop;
+
+BlueLidInQ := BlueLidStation.QueueCount;
+BlueLidCount := BlueLidStation.CompletedCount;
+
+
+BlueBaseStation(
+    MaterialVisible := Blue_base_mat_vis,
+    PusherLimit := BlueBasePusherLim,
+    MachineProgress := MachineStation3Progress,
+    StationOpen := Blue_base_open,
+    MaxQueue := 2,
+    DownStream := BlueBaseAvailable,
+    ResetCounts := counterReset,
+
+    PairResetting := BluePair.PairResetting
+    );
+
+Blue_base_mat_push := BlueBaseStation.MaterialPush;
+Blue_base_mat_feed := BlueBaseStation.MaterialFeed;
+
+MachineStation3Run := BlueBaseStation.MachineRun;
+MachineStation3Stop := BlueBaseStation.MachineStop;
+
+BlueBaseInQ := BlueBaseStation.QueueCount;
+BlueBaseCount := BlueBaseStation.CompletedCount;
+
+
+GrnLidStation(
+    MaterialVisible := Grn_lid_mat_vis,
+    PusherLimit := GrnLidPusherLim,
+    MachineProgress := MachineStation1Progress,
+    StationOpen := Grn_lid_open,
+    MaxQueue := 2,
+    DownStream := GrnLidAvailable,
+    ResetCounts := counterReset,
+
+    PairResetting := GreenPair.PairResetting
+    );
+
+Grn_lid_mat_push := GrnLidStation.MaterialPush;
+Grn_lid_mat_feed := GrnLidStation.MaterialFeed;
+
+MachineStation1Run := GrnLidStation.MachineRun;
+MachineStation1Stop := GrnLidStation.MachineStop;
+
+GrnLidInQ := GrnLidStation.QueueCount;
+GrnLidCount := GrnLidStation.CompletedCount;
+
+
+GrnBaseStation(
+    MaterialVisible := Grn_base_mat_vis,
+    PusherLimit := GrnBasePusherLim,
+    MachineProgress := MachineStation4Progress,
+    StationOpen := Grn_base_open,
+    MaxQueue := 2,
+    DownStream := GrnBaseAvailable,
+    ResetCounts := counterReset,
+
+    PairResetting := GreenPair.PairResetting
+    );
+
+Grn_base_mat_push := GrnBaseStation.MaterialPush;
+Grn_base_mat_feed := GrnBaseStation.MaterialFeed;
+
+MachineStation4Run := GrnBaseStation.MachineRun;
+MachineStation4Stop := GrnBaseStation.MachineStop;
+
+GrnBaseInQ := GrnBaseStation.QueueCount;
+GrnBaseCount := GrnBaseStation.CompletedCount;
+
+
+MtlLidStation(
+    MaterialVisible := Mtl_lid_mat_vis,
+    PusherLimit := MtlLidPusherLim,
+    MachineProgress := MachineStation2Progress,
+    StationOpen := Mtl_lid_open,
+    MaxQueue := 2,
+    DownStream := MtlLidAvailable,
+    ResetCounts := counterReset,
+
+    PairResetting := MetalPair.PairResetting
+    );
+
+Mtl_lid_mat_push := MtlLidStation.MaterialPush;
+Mtl_lid_mat_feed := MtlLidStation.MaterialFeed;
+
+MachineStation2Run := MtlLidStation.MachineRun;
+MachineStation2Stop := MtlLidStation.MachineStop;
+
+MtlLidInQ := MtlLidStation.QueueCount;
+MtlLidCount := MtlLidStation.CompletedCount;
+
+
+MtlBaseStation(
+    MaterialVisible := Mtl_base_mat_vis,
+    PusherLimit := MtlBasePusherLim,
+    MachineProgress := MachineStation5Progress,
+    StationOpen := Mtl_base_open,
+    MaxQueue := 2,
+    DownStream := MtlBaseAvailable,
+    ResetCounts := counterReset,
+
+    PairResetting := MetalPair.PairResetting
+    );
+
+Mtl_base_mat_push := MtlBaseStation.MaterialPush;
+Mtl_base_mat_feed := MtlBaseStation.MaterialFeed;
+
+MachineStation5Run := MtlBaseStation.MachineRun;
+MachineStation5Stop := MtlBaseStation.MachineStop;
+
+MtlBaseInQ := MtlBaseStation.QueueCount;
+MtlBaseCount := MtlBaseStation.CompletedCount;
+
+
+// ------------------------------------------------------------
+// Fabrication-station buffers and pair-release control
+// ------------------------------------------------------------
+BlueLidBuffer(
+    Enable := ConveyorRunning,
+    DiffuseSensor := BlueLidBufferReady,
+    ReleaseCommand := BluePair.LidReleaseCommand,
+    Reset := counterReset,
+    AssembVision := BlueLidToAssemb,
+    ReleaseTime := T#2S,
+
+    ForcedRelease := BluePair.LidForceRelease
+    );
+
+BlueLidBufferCB := BlueLidBuffer.BeltRun;
+BlueLidStop := BlueLidBuffer.StopBlade;
+
+BlueBaseBuffer(
+    Enable := ConveyorRunning,
+    DiffuseSensor := BlueBaseBufferReady,
+    ReleaseCommand := BluePair.BaseReleaseCommand,
+    Reset := counterReset,
+    AssembVision := BlueBaseToAssemb,
+    ReleaseTime := T#2S,
+    ForcedRelease := BluePair.BaseForceRelease
+    );
+
+BlueBaseBufferCB := BlueBaseBuffer.BeltRun;
+BlueBaseStop := BlueBaseBuffer.StopBlade;
+
+BluePair(
+    Enable := ConveyorRunning,
+    Grant := BluePairGrant,
+
+    LidWaiting := BlueLidBuffer.PartWaiting,
+    BaseWaiting := BlueBaseBuffer.PartWaiting,
+
+    LidReleaseDone := BlueLidBuffer.ReleaseDone,
+    BaseReleaseDone := BlueBaseBuffer.ReleaseDone,
+
+    LidReleaseVision := BlueLidToAssemb,
+    BaseReleaseVision := BlueBaseToAssemb,
+
+    Reset := counterReset,
+    );
+
+
+GreenLidBuffer(
+    Enable := ConveyorRunning,
+    DiffuseSensor := GrnLidBufferReady,
+    ReleaseCommand := GreenPair.LidReleaseCommand,
+    Reset := counterReset,
+    AssembVision := GrnLidToAssemb,
+    ReleaseTime := T#2S,
+
+    ForcedRelease := GreenPair.LidForceRelease
+    );
+
+GrnLidBuffer := GreenLidBuffer.BeltRun;
+GrnLidStop := GreenLidBuffer.StopBlade;
+
+
+GreenBaseBuffer(
+    Enable := ConveyorRunning,
+    DiffuseSensor := GrnBaseBufferReady,
+    ReleaseCommand := GreenPair.BaseReleaseCommand,
+    Reset := counterReset,
+    AssembVision := GrnBaseToAssemb,
+    ReleaseTime := T#2S,
+
+    ForcedRelease := BluePair.BaseForceRelease
+    );
+
+GrnBaseBuffer := GreenBaseBuffer.BeltRun;
+GrnBaseStop := GreenBaseBuffer.StopBlade;
+
+
+GreenPair(
+    Enable := ConveyorRunning,
+    Grant := GrnPairGrant,
+
+    LidWaiting := GreenLidBuffer.PartWaiting,
+    BaseWaiting := GreenBaseBuffer.PartWaiting,
+
+    LidReleaseDone := GreenLidBuffer.ReleaseDone,
+    BaseReleaseDone := GreenBaseBuffer.ReleaseDone,
+
+    Reset := counterReset,
+
+    LidReleaseVision := GrnLidToAssemb,
+    BaseReleaseVision := GrnBaseToAssemb
+    );
+
+
+MetalLidBuffer(
+    Enable := ConveyorRunning,
+    DiffuseSensor := MtlLidBufferReady,
+    ReleaseCommand := MetalPair.LidReleaseCommand,
+    Reset := counterReset,
+    AssembVision := MtlLidToAssemb,
+    ReleaseTime := T#2S,
+
+    ForcedRelease := MetalPair.LidForceRelease
+    );
+
+MtlLidBuffer := MetalLidBuffer.BeltRun;
+MtlLidStop := MetalLidBuffer.StopBlade;
+
+
+MetalBaseBuffer(
+    Enable := ConveyorRunning,
+    DiffuseSensor := MtlBaseBufferReady,
+    ReleaseCommand := MetalPair.BaseReleaseCommand,
+    Reset := counterReset,
+    AssembVision := MtlBaseToAssemb,
+    ReleaseTime := T#2S,
+
+    ForcedRelease := MetalPair.BaseForceRelease
+    );
+
+MtlBaseBuffer := MetalBaseBuffer.BeltRun;
+MtlBaseStop := MetalBaseBuffer.StopBlade;
+
+
+MetalPair(
+    Enable := ConveyorRunning,
+    Grant := MtlPairGrant,
+
+    LidWaiting := MetalLidBuffer.PartWaiting,
+    BaseWaiting := MetalBaseBuffer.PartWaiting,
+
+    LidReleaseDone := MetalLidBuffer.ReleaseDone,
+    BaseReleaseDone := MetalBaseBuffer.ReleaseDone,
+
+    Reset := counterReset,
+
+    LidReleaseVision := MtlLidToAssemb,
+    BaseReleaseVision := MtlBaseToAssemb
+    );
+
+
+// ------------------------------------------------------------
+// Available complete-pair calculations
+// ------------------------------------------------------------
+
+
+BlueLidAvailable := BlueLidCount - BlueLidBuffer.ReleasedCount;
+BlueBaseAvailable := BlueBaseCount - BlueBaseBuffer.ReleasedCount;
+BluePairAvailable := MIN(BlueLidAvailable, BlueBaseAvailable);
+
+
+GrnLidAvailable := GrnLidCount - GreenLidBuffer.ReleasedCount;
+GrnBaseAvailable := GrnBaseCount - GreenBaseBuffer.ReleasedCount;
+GrnPairAvailable := MIN(GrnLidAvailable, GrnBaseAvailable);
+
+MtlLidAvailable := MtlLidCount - MetalLidBuffer.ReleasedCount;
+MtlBaseAvailable := MtlBaseCount - MetalBaseBuffer.ReleasedCount;
+MtlPairAvailable := MIN(MtlLidAvailable, MtlBaseAvailable);
+
+
+// ------------------------------------------------------------
+// Pair dispatcher and assembly-cell coordination
+// ------------------------------------------------------------
+
+PairDispatcher(
+    Enable := ConveyorRunning,
+    Reset  := CounterReset,
+
+    // Assembly-cell handshake
+    AssemblyReady := AssemblyReady,
+    AssemblyDone  := AssemblyDone,
+    PairResetting := AssemblyCell.PairResetting,
+
+    // Complete-pair availability
+    BlueAvailable  := BluePairAvailable,
+    GreenAvailable := GrnPairAvailable,
+    MetalAvailable := MtlPairAvailable,
+
+    // Buffer readiness
+    BlueLidWaiting  := BlueLidBuffer.PartWaiting,
+    BlueBaseWaiting := BlueBaseBuffer.PartWaiting,
+
+    GreenLidWaiting  := GreenLidBuffer.PartWaiting,
+    GreenBaseWaiting := GreenBaseBuffer.PartWaiting,
+
+    MetalLidWaiting  := MetalLidBuffer.PartWaiting,
+    MetalBaseWaiting := MetalBaseBuffer.PartWaiting,
+
+    // Pair-release completion
+    BluePairReleased  := BluePair.PairReleased,
+    GreenPairReleased := GreenPair.PairReleased,
+    MetalPairReleased := MetalPair.PairReleased,
+
+    // Pair reset state
+    BluePairResetting := BluePair.SinglePairReset,
+    GreenPairResetting := GreenPair.SinglePairReset,
+    MetalPairResetting := MetalPair.SinglePairReset,
+
+    //Reset hanshake
+    AssembReset := AssemblyCell.AssembReset,
+
+    // Grants
+    BlueGrant  => BluePairGrant,
+    GreenGrant => GrnPairGrant,
+    MetalGrant => MtlPairGrant,
+
+    // Diagnostics
+    Busy         => DispatcherBusy,
+    SelectedPair => SelectedPair
+    );
+
+
+AssemblyCell(
+    Enable := ConveyorRunning,
+    Reset := counterReset,
+
+    LidDetected := AssembLidReady,
+    BaseDetected := AssembBaseReady,
+
+    LidClampDown := LidClampDownSensor,
+    BaseClampDown := LidClampDownSensor,
+
+    LidClampLocked := LidClampLockedSensor,
+    BaseClampLocked := BaseClampLockedSensor,
+
+    PickXPosition := PickXPositionV,
+    PickZPosition := PickZPositionV,
+
+    PickMovingX := PickMovingXSensor,
+    PickMovingZ := PickMovingZSensor,
+
+    PickDetected := PickDetectedSensor,
+
+    FeedTime := T#2S,
+    ClearTime := T#2S,
+    SuctionCheckTime := T#300MS,
+    ReleaseCheckTime := T#300MS,
+
+    BluePairResetting := BluePair.SinglePairReset,
+    GreenPairResetting := GreenPair.SinglePairReset,
+    MetalPairResetting := MetalPair.SinglePairReset,
+    );
+
+AssembStopLid := AssemblyCell.LidStopBlade;
+AssembStopBase := AssemblyCell.BaseStopBlade;
+
+AssembLidBelt := AssemblyCell.LidFeederRun;
+AssembBaseBelt := AssemblyCell.BaseFeederRun;
+
+AssembLidRaise := AssemblyCell.LidClampRaiseCmd;
+AssembBaseRaise := AssemblyCell.BaseClampRaiseCmd;
+
+AssembLidClamp := AssemblyCell.LidClampLockCmd;
+AssembBaseClamp := AssemblyCell.BaseClampLockCmd;
+
+PickSetX := AssemblyCell.PickXSetPoint;
+PickSetZ := AssemblyCell.PickZSetPoint;
+PickGrab := AssemblyCell.PickGrabCmd;
+
+AssemblyReady := AssemblyCell.ReadyForPair;
+AssemblyBusy := AssemblyCell.Busy;
+AssemblyDone := AssemblyCell.Done;
+
+
+// ------------------------------------------------------------
+// Inspection and acceptance-pusher control
+// ------------------------------------------------------------
+
+BlueInspection(
+    Enable := ConveyorRunning,
+    Reset := CounterReset,
+    LidVision := BlueLidIns,
+    BaseVision := BlueBaseIns,
+    PusherFrontLimit := BluePusherFrontLimit,
+    TravelTime := T#600MS
+    );
+BlueRejectPusher := BlueInspection.Pusher;
+
+
+GreenInspection(
+    Enable := ConveyorRunning,
+    Reset := CounterReset,
+    LidVision := GreenLidIns,
+    BaseVision := GreenBaseIns,
+    PusherFrontLimit := GreenPusherFrontLimit,
+    TravelTime := T#200MS
+    );
+GreenRejectPusher := GreenInspection.Pusher;
+
+
+MetalInspection(
+    Enable := ConveyorRunning,
+    Reset := CounterReset,
+    LidVision := MetalLidIns,
+    BaseVision := MetalBaseIns,
+    PusherFrontLimit := MetalPusherFrontLimit,
+    TravelTime := T#600MS
+    );
+MetalRejectPusher := MetalInspection.Pusher;
+
+
+// ------------------------------------------------------------
+// Accepted-assembly loading buffers
+// ------------------------------------------------------------
+
+BlueLoad(
+    Enable           := ConveyorRunning,
+    Reset            := CounterReset,
+
+    PartDetected     := BlueAssembVis,
+    PalletInPosition := BluePalletPos,
+    LoadPermission   := BlueLoadGrant,
+
+    TargetCount      := 1,
+    SortTime         := T#2S,
+    LoadTime         := T#8S,
+    );
+
+BluePalletRequest := BlueLoad.RequestPallet;
+BlueLoadingDone := BlueLoad.BatchComplete;
+BlueAssembArmTurn := BlueLoad.PivotArmCommand;
+BlueAssembArmBelt := BlueLoad.ArmBeltRun;
+BlueAssembBufferBelt := BlueLoad.BufferBeltRun;
+
+
+GreenLoad(
+    Enable           := ConveyorRunning,
+    Reset            := CounterReset,
+
+    PartDetected     := GreenAssembVis,
+    PalletInPosition := GreenPalletPos,
+    LoadPermission   := GreenLoadGrant,
+
+    TargetCount      := 1,
+    SortTime         := T#2S,
+    LoadTime         := T#8S,
+    );
+
+GreenPalletRequest := GreenLoad.RequestPallet;
+GreenLoadingDone := GreenLoad.BatchComplete;
+GreenAssembArmTurn := GreenLoad.PivotArmCommand;
+GreenAssembArmBelt := GreenLoad.ArmBeltRun;
+GreenAssembBufferBelt := GreenLoad.BufferBeltRun;
+
+
+MetalLoad(
+    Enable           := ConveyorRunning,
+    Reset            := CounterReset,
+
+    PartDetected     := MetalAssembVis,
+    PalletInPosition := MetalPalletPos,
+    LoadPermission   := MetalLoadGrant,
+
+    TargetCount      := 1,
+    SortTime         := T#2S,
+    LoadTime         := T#8S,
+    );
+
+MetalPalletRequest := MetalLoad.RequestPallet;
+MetalLoadingDone := MetalLoad.BatchComplete;
+MetalAssembArmTurn := MetalLoad.PivotArmCommand;
+MetalAssembArmBelt := MetalLoad.ArmBeltRun;
+MetalAssembBufferBelt := MetalLoad.BufferBeltRun;
+
+
+// ------------------------------------------------------------
+// Pallet generation and loading dispatcher
+// ------------------------------------------------------------
+
+LoadingDispatcher(
+    Enable := ConveyorRunning,
+    Reset  := CounterReset,
+
+    (* Requests from the three loading-buffer FBs *)
+    BlueRequest  := BluePalletRequest,
+    GreenRequest := GreenPalletRequest,
+    MetalRequest := MetalPalletRequest,
+
+    (* Pallet-position sensors at each loading lane *)
+    BluePalletPos  := BluePalletPos,
+    GreenPalletPos := GreenPalletPos,
+    MetalPalletPos := MetalPalletPos,
+
+    (* Loading completion pulses from each buffer FB *)
+    BlueBatchComplete  := BlueLoadingDone,
+    GreenBatchComplete := GreenLoadingDone,
+    MetalBatchComplete := MetalLoadingDone,
+
+    (* Diffuse sensor at the end of the dispatch roller *)
+    DispatchExitSensor := PalletExitSensor,
+
+    (* Pallet-generation roller runtime *)
+    PalletGenerationTime := T#2S,
+
+    BlueLoadGrant  => BlueLoadGrant,
+    GreenLoadGrant => GreenLoadGrant,
+    MetalLoadGrant => MetalLoadGrant,
+
+    PalletColorQueue := PalletColorQueue,
+    QueueTail := PalletQueueTail,
+    QueueCount := PalletQueueCount
+    );
+
+PalletGenerationRoller := LoadingDispatcher.PalletGenerationBelt;
+RollerCon6M_0 := LoadingDispatcher.PalletDispatchBelt;
+RollerCon6M_1 := LoadingDispatcher.PalletDispatchBelt;
+RollerCon4M_0 := LoadingDispatcher.PalletDispatchBelt;
+CRC_0 := LoadingDispatcher.PalletDispatchBelt;
+CRC_1 := LoadingDispatcher.PalletDispatchBelt;
+
+
+// ------------------------------------------------------------
+// Pallet turntable and routing queue
+// ------------------------------------------------------------
+
+PalletTurntable(
+    Enable := ConveyorRunning,
+    Reset := CounterReset,
+
+    EntranceSensor := PalletTurntableEntranceSensor,
+    BackLimitSensor := PalletTurntableFrontLimit,
+    Angle90Limit := PalletTurntable90Limit,
+
+    DischargeTime := T#5S,
+
+    HomeLimit := TurntableHome,
+
+    PalletColorQueue := PalletColorQueue,
+    QueueHead := PalletQueueHead,
+    QueueCount := PalletQueueCount
+    );
+
+PalletEntranceBelt := PalletTurntable.EntranceBelt;
+TurntableBeltMotor := PalletTurntable.TurntableBelt;
+TurntableBeltMotorReverse := PalletTurntable.TurntableBeltReverse;
+
+TurntablePositive := PalletTurntable.TurnPositive;
+TurntableNegative := PalletTurntable.TurnNegative;
+
+IF CounterReset THEN
+
+    FOR QueueResetIndex := 0 TO 19 DO
+        PalletColorQueue[QueueResetIndex] := 0;
+    END_FOR;
+
+    PalletQueueHead := 0;
+    PalletQueueTail := 0;
+    PalletQueueCount := 0;
+
+END_IF;
+
+
+// ------------------------------------------------------------
+// Automated storage cranes
+// ------------------------------------------------------------
+
+Crane0Stacker(
+    Enable := StackerEnable,
+    Reset := CounterReset,
+
+    EntranceSensor := Crane0Entrance,
+    LoadReady := Crane0LoadReady,
+
+    ForkRightLimit := Crane0RightLimit,
+    ForkMiddleLimit := Crane0MiddleLimit,
+    ForkLeftLimit := Crane0LeftLimit,
+
+    CraneMovingX := Crane0MovingX,
+    CraneMovingZ := Crane0MovingZ,
+
+
+    StorageOccupied := Crane0StorageOccupied,
+
+    FeedBelt => CRCCW_4,
+    FeedBelt => LoadingConveyor0,
+
+    MoveForkRight => Crane0Right,
+    MoveForkLeft => Crane0Left,
+    RaiseFork => Crane0Lift,
+
+    Busy => Crane0Busy,
+    CycleDone => Crane0CycleDone,
+    StorageFull => Crane0StorageFull,
+    SelectedStorage => Crane0SelectedStorage,
+    State => Crane0State
+    );
+Crane0Target := Crane0Stacker.CraneTargetPosition;
+
+Crane1Stacker(
+    Enable := StackerEnable,
+    Reset := CounterReset,
+
+    EntranceSensor := Crane1Entrance,
+    LoadReady := Crane1LoadReady,
+
+    ForkRightLimit := Crane1RightLimit,
+    ForkMiddleLimit := Crane1MiddleLimit,
+    ForkLeftLimit := Crane1LeftLimit,
+
+    CraneMovingX := Crane1MovingX,
+    CraneMovingZ := Crane1MovingZ,
+
+
+    StorageOccupied := Crane1StorageOccupied,
+
+    FeedBelt => CRCCW_5,
+    FeedBelt => LoadingConveyor1,
+
+    MoveForkRight => Crane1Right,
+    MoveForkLeft => Crane1Left,
+    RaiseFork => Crane1Lift,
+
+    Busy => Crane1Busy,
+    CycleDone => Crane1CycleDone,
+    StorageFull => Crane1StorageFull,
+    SelectedStorage => Crane1SelectedStorage,
+    State => Crane1State
+    );
+Crane1Target := Crane1Stacker.CraneTargetPosition;
+
+Crane2Stacker(
+    Enable := StackerEnable,
+    Reset := CounterReset,
+
+    EntranceSensor := Crane2Entrance,
+    LoadReady := Crane2LoadReady,
+
+    ForkRightLimit := Crane2RightLimit,
+    ForkMiddleLimit := Crane2MiddleLimit,
+    ForkLeftLimit := Crane2LeftLimit,
+
+    CraneMovingX := Crane2MovingX,
+    CraneMovingZ := Crane2MovingZ,
+
+
+    StorageOccupied := Crane2StorageOccupied,
+
+    FeedBelt => CRCCW_7,
+    FeedBelt => LoadingConveyor2,
+
+    MoveForkRight => Crane2Right,
+    MoveForkLeft => Crane2Left,
+    RaiseFork => Crane2Lift,
+
+    Busy => Crane2Busy,
+    CycleDone => Crane2CycleDone,
+    StorageFull => Crane2StorageFull,
+    SelectedStorage => Crane2SelectedStorage,
+    State => Crane2State
+    );
+Crane2Target := Crane2Stacker.CraneTargetPosition;
