@@ -1,0 +1,271 @@
+FUNCTION_BLOCK FB_MaterialPair
+VAR_INPUT
+    Enable          : BOOL;
+	Grant : BOOL ;
+
+    LidWaiting      : BOOL;
+    BaseWaiting     : BOOL;
+
+    LidReleaseDone  : BOOL;
+    BaseReleaseDone : BOOL;
+
+    Reset           : BOOL;
+	PairResetting : BOOL := false;
+	
+	PairReleaseTime : TIME := T#2S;
+	PairResetTime : TIME := T#5S;
+	
+	LidReleaseVision : BOOL;
+	BaseReleaseVision : BOOL;
+END_VAR
+
+VAR
+    State : INT := 0;
+    LidDoneLatched : BOOL := FALSE;
+    BaseDoneLatched : BOOL := FALSE;
+	
+	PairReleaseTimer : TON;
+	PairResetTimer : TON;
+	
+	LidVisionEdge      : R_TRIG;
+    BaseVisionEdge     : R_TRIG;
+
+    LidVisionLatched   : BOOL;
+    BaseVisionLatched  : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    LidReleaseCommand  : BOOL;
+    BaseReleaseCommand : BOOL;
+
+    PairReady          : BOOL;
+    PairBusy           : BOOL;
+    PairReleased       : BOOL;
+	
+	SinglePairReset : BOOL;
+	
+	LidForceRelease : BOOL := FALSE;
+	BaseForceRelease : BOOL := FALSE;
+
+END_VAR
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------
+// Vision rising-edge detection
+// ------------------------------------------------------------
+
+// Detect each released part crossing its assembly vision sensor.
+LidVisionEdge(CLK := LidReleaseVision);
+BaseVisionEdge(CLK := BaseReleaseVision);
+
+// ------------------------------------------------------------
+// Vision detection latches
+// ------------------------------------------------------------
+
+// Latch vision detections only while a normal pair release
+// is active.
+IF State = 1 THEN
+
+
+IF LidVisionEdge.Q THEN
+    LidVisionLatched := TRUE;
+END_IF;
+
+IF BaseVisionEdge.Q THEN
+    BaseVisionLatched := TRUE;
+END_IF;
+
+
+END_IF;
+
+// ------------------------------------------------------------
+// Pair-release mismatch timer
+// ------------------------------------------------------------
+
+// Start the timer after one part has crossed its vision sensor
+// while the matching part has not yet been detected.
+PairReleaseTimer(
+IN := (State = 1)
+AND (LidVisionLatched XOR BaseVisionLatched),
+PT := T#1s
+);
+
+// ------------------------------------------------------------
+// Pair-recovery timer
+// ------------------------------------------------------------
+
+// State 2 holds the forced-release recovery for five seconds.
+PairResetTimer(
+IN := (State = 2),
+PT := T#5s
+);
+
+// ------------------------------------------------------------
+// Reset and disable handling
+// ------------------------------------------------------------
+
+IF Reset OR NOT Enable THEN
+State := 0;
+
+
+LidDoneLatched := FALSE;
+BaseDoneLatched := FALSE;
+
+LidVisionLatched := FALSE;
+BaseVisionLatched := FALSE;
+
+PairResetting := FALSE;
+SinglePairReset := FALSE;
+
+
+END_IF;
+
+// ------------------------------------------------------------
+// Default status outputs
+// ------------------------------------------------------------
+
+PairReady := LidWaiting AND BaseWaiting;
+PairReleased := FALSE;
+
+// This output remains false unless the recovery state asserts it.
+SinglePairReset := FALSE;
+
+// ------------------------------------------------------------
+// Pair-release state machine
+// ------------------------------------------------------------
+
+CASE State OF
+
+
+// ========================================================
+// 0: Wait for a complete pair and dispatcher grant
+// ========================================================
+0:
+    LidReleaseCommand := FALSE;
+    BaseReleaseCommand := FALSE;
+
+    PairBusy := FALSE;
+    PairResetting := FALSE;
+
+    LidDoneLatched := FALSE;
+    BaseDoneLatched := FALSE;
+
+    LidVisionLatched := FALSE;
+    BaseVisionLatched := FALSE;
+
+    IF Enable
+        AND Grant
+        AND LidWaiting
+        AND BaseWaiting
+    THEN
+        State := 1;
+    END_IF;
+
+
+// ========================================================
+// 1: Release the lid and base together
+// ========================================================
+1:
+    LidReleaseCommand := TRUE;
+    BaseReleaseCommand := TRUE;
+
+    PairBusy := TRUE;
+    PairResetting := FALSE;
+
+    // Latch completion from each buffer controller.
+    IF LidReleaseDone THEN
+        LidDoneLatched := TRUE;
+    END_IF;
+
+    IF BaseReleaseDone THEN
+        BaseDoneLatched := TRUE;
+    END_IF;
+
+
+    // Both buffer releases completed normally.
+    IF LidDoneLatched AND BaseDoneLatched THEN
+        PairReleased := TRUE;
+
+        LidReleaseCommand := FALSE;
+        BaseReleaseCommand := FALSE;
+
+        PairBusy := FALSE;
+
+        LidVisionLatched := FALSE;
+        BaseVisionLatched := FALSE;
+
+        State := 0;
+
+
+    // One part crossed its vision sensor, but the matching
+    // part was not detected within one second.
+    ELSIF PairReleaseTimer.Q THEN
+        PairResetting := TRUE;
+        State := 2;
+    END_IF;
+
+
+// ========================================================
+// 2: Force-release both buffers during pair recovery
+// ========================================================
+2:
+    PairResetting := TRUE;
+    SinglePairReset := TRUE;
+    PairBusy := TRUE;
+
+    PairReleased := TRUE;
+
+    LidForceRelease := TRUE;
+    BaseForceRelease := TRUE;
+
+    LidReleaseCommand := TRUE;
+    BaseReleaseCommand := TRUE;
+
+    IF PairResetTimer.Q THEN
+        LidForceRelease := FALSE;
+        BaseForceRelease := FALSE;
+
+        PairReleased := FALSE;
+
+        LidDoneLatched := FALSE;
+        BaseDoneLatched := FALSE;
+
+        LidVisionLatched := FALSE;
+        BaseVisionLatched := FALSE;
+
+        PairResetting := FALSE;
+        PairBusy := FALSE;
+
+        // SinglePairReset returns false on the next scan
+        // because of the default assignment above.
+        State := 0;
+    END_IF;
+
+
+// ========================================================
+// Invalid-state recovery
+// ========================================================
+ELSE
+    State := 0;
+
+    LidReleaseCommand := FALSE;
+    BaseReleaseCommand := FALSE;
+
+    LidDoneLatched := FALSE;
+    BaseDoneLatched := FALSE;
+
+    LidVisionLatched := FALSE;
+    BaseVisionLatched := FALSE;
+
+    PairResetting := FALSE;
+    SinglePairReset := FALSE;
+    PairBusy := FALSE;
+
+
+END_CASE;
