@@ -1,0 +1,318 @@
+FUNCTION_BLOCK FB_PalletTurntable
+
+VAR_INPUT
+    Enable : BOOL;
+    Reset  : BOOL;
+
+    // Pallet transfer sensors
+    EntranceSensor  : BOOL;
+    BackLimitSensor : BOOL;
+
+    // Active when the table reaches either +90° or -90°
+    Angle90Limit : BOOL;
+
+    // Time to discharge pallet from turntable
+    DischargeTime : TIME := T#5S;
+	HomeLimit : BOOL;
+END_VAR
+
+
+VAR_IN_OUT
+    // Queue maintained by the pallet-loading dispatcher
+    // 1 = Blue, 2 = Green, 3 = Metal
+    PalletColorQueue : ARRAY[0..19] OF INT;
+
+    // Index of the oldest pallet entry
+    QueueHead : INT;
+
+    // Number of valid entries currently in the queue
+    QueueCount : INT;
+END_VAR
+
+
+VAR_OUTPUT
+    // Conveyor outputs
+    EntranceBelt  : BOOL;
+    TurntableBelt : BOOL;
+	TurntableBeltReverse : BOOL;
+
+    // Turntable rotation outputs
+    TurnPositive : BOOL;
+    TurnNegative : BOOL;
+
+    // Status
+    Busy         : BOOL;
+    PalletDone   : BOOL;
+    CurrentColor : INT;
+    State        : INT;
+
+    QueueEmpty   : BOOL;
+    InvalidColor : BOOL;
+END_VAR
+
+
+VAR
+    EntranceEdge  : R_TRIG;
+    BackLimitEdge : R_TRIG;
+
+    DischargeTimer : TON;
+END_VAR
+
+
+VAR CONSTANT
+    COLOR_BLUE  : INT := 1;
+    COLOR_GREEN : INT := 2;
+    COLOR_METAL : INT := 3;
+
+    QUEUE_SIZE : INT := 20;
+END_VAR
+
+
+
+
+
+
+
+// ------------------------------------------------------------
+// Discharge timer
+// ------------------------------------------------------------
+
+DischargeTimer(
+IN := (State = 30) OR (state = 31),
+PT := DischargeTime
+);
+
+// ------------------------------------------------------------
+// Default turntable rotation commands
+// ------------------------------------------------------------
+
+TurnPositive := FALSE;
+TurnNegative := FALSE;
+
+// ------------------------------------------------------------
+// Pallet turntable sequence
+// ------------------------------------------------------------
+
+CASE State OF
+
+
+// ========================================================
+// 0: Wait for a pallet at the turntable entrance
+// ========================================================
+0:
+    Busy := FALSE;
+
+    IF Enable AND EntranceSensor THEN
+
+        // Read the next pallet color from the dispatch queue.
+        IF QueueCount > 0 THEN
+            CurrentColor := PalletColorQueue[QueueHead];
+
+            CASE CurrentColor OF
+
+                COLOR_BLUE,
+                COLOR_GREEN,
+                COLOR_METAL:
+                    State := 10;
+
+                ELSE
+                    InvalidColor := TRUE;
+                    State := 90;
+
+            END_CASE
+
+        ELSE
+            QueueEmpty := TRUE;
+        END_IF
+
+    END_IF
+
+
+// ========================================================
+// 10: Move the pallet onto the turntable
+// ========================================================
+10:
+    Busy := TRUE;
+
+    EntranceBelt := TRUE;
+    TurntableBelt := TRUE;
+
+    IF BackLimitSensor THEN
+        State := 20;
+    END_IF
+
+
+// ========================================================
+// 20: Rotate according to the pallet color
+// ========================================================
+20:
+    Busy := TRUE;
+
+    EntranceBelt := FALSE;
+    TurntableBelt := FALSE;
+
+    CASE CurrentColor OF
+
+        // Blue pallet: rotate toward the blue discharge lane.
+        COLOR_BLUE:
+            IF Angle90Limit THEN
+                State := 30;
+
+            ELSE
+                TurnPositive := FALSE;
+                TurnNegative := TRUE;
+            END_IF
+
+
+        // Green pallet: discharge directly from the center position.
+        COLOR_GREEN:
+            State := 30;
+
+
+        // Metal pallet: rotate toward the metal discharge lane.
+        COLOR_METAL:
+            IF Angle90Limit THEN
+                State := 31;
+
+            ELSE
+                TurnNegative := TRUE;
+                TurnPositive := FALSE;
+            END_IF
+
+
+        ELSE
+            InvalidColor := TRUE;
+            State := 90;
+
+    END_CASE
+
+
+// ========================================================
+// 30: Discharge the pallet using the forward belt direction
+// ========================================================
+30:
+    Busy := TRUE;
+    TurntableBelt := TRUE;
+
+    IF DischargeTimer.Q THEN
+
+        // Remove the dispatched pallet from the queue.
+        IF QueueCount > 0 THEN
+            PalletColorQueue[QueueHead] := 0;
+
+            QueueHead := QueueHead + 1;
+
+            IF QueueHead >= QUEUE_SIZE THEN
+                QueueHead := 0;
+            END_IF
+
+            QueueCount := QueueCount - 1;
+        END_IF
+
+        State := 40;
+    END_IF
+
+
+// ========================================================
+// 31: Discharge the pallet using the reverse belt direction
+// ========================================================
+31:
+    Busy := TRUE;
+    TurntableBeltReverse := TRUE;
+
+    IF DischargeTimer.Q THEN
+
+        // Remove the dispatched pallet from the queue.
+        IF QueueCount > 0 THEN
+            PalletColorQueue[QueueHead] := 0;
+
+            QueueHead := QueueHead + 1;
+
+            IF QueueHead >= QUEUE_SIZE THEN
+                QueueHead := 0;
+            END_IF
+
+            QueueCount := QueueCount - 1;
+        END_IF
+
+        TurntableBeltReverse := FALSE;
+        State := 40;
+    END_IF
+
+
+// ========================================================
+// 40: Return the turntable to its home position
+// ========================================================
+40:
+    Busy := TRUE;
+
+    TurntableBelt := FALSE;
+    TurntableBelt := FALSE;
+
+    CASE CurrentColor OF
+
+        // Return from the blue discharge position.
+        COLOR_BLUE:
+            IF HomeLimit THEN
+                PalletDone := TRUE;
+                CurrentColor := 0;
+                State := 0;
+
+            ELSE
+                TurnNegative := FALSE;
+                TurnPositive := TRUE;
+            END_IF
+
+
+        // The turntable remains home for green pallets.
+        COLOR_GREEN:
+            PalletDone := TRUE;
+            CurrentColor := 0;
+            State := 0;
+
+
+        // Return from the metal discharge position.
+        COLOR_METAL:
+            IF HomeLimit THEN
+                PalletDone := TRUE;
+                CurrentColor := 0;
+                State := 0;
+
+            ELSE
+                TurnPositive := TRUE;
+                TurnNegative := FALSE;
+            END_IF
+
+
+        ELSE
+            InvalidColor := TRUE;
+            State := 90;
+
+    END_CASE
+
+
+// ========================================================
+// 90: Invalid pallet-color fault
+// ========================================================
+90:
+    Busy := FALSE;
+    InvalidColor := TRUE;
+
+
+// ========================================================
+// Invalid-state recovery
+// ========================================================
+ELSE
+    State := 0;
+
+
+END_CASE
+
+// ------------------------------------------------------------
+// Reset handling
+// ------------------------------------------------------------
+
+IF reset THEN
+State := 0;
+END_IF
+
