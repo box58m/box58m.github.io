@@ -1,0 +1,204 @@
+FUNCTION_BLOCK FB_MaterialStation
+VAR_INPUT
+    MaterialVisible : BOOL;
+    PusherLimit     : BOOL;
+    MachineProgress : BOOL;
+    StationOpen     : BOOL;
+
+    MaxQueue        : INT := 2;
+	DownStream: INT;
+    ResetCounts     : BOOL;
+	
+	UnloadTime : TIME := T#15S;
+	
+	QueueTimeoutTime : TIME := T#40S;
+
+	
+	PairResetting : BOOL := false;
+END_VAR
+
+VAR_OUTPUT
+    MaterialPush    : BOOL;
+    MaterialFeed    : BOOL;
+
+    MachineRun      : BOOL;
+    MachineStop     : BOOL;
+
+    QueueCount      : INT := 0;
+    CompletedCount  : INT := 0;
+END_VAR
+
+VAR
+    PushEdge       : R_TRIG;
+    ProgressRise   : R_TRIG;
+    ProgressFall   : F_TRIG;
+
+    UnloadTimer    : TON;
+	
+	QueueTimeoutTimer : TON;
+	QueueTimeoutEdge  : R_TRIG;
+
+    CycleActive    : BOOL;
+    Unloading      : BOOL;
+
+END_VAR
+
+
+
+
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------
+// Edge detection
+// ------------------------------------------------------------
+
+// Detect the raw-material pusher reaching its limit.
+PushEdge(CLK := PusherLimit);
+
+// Detect fabrication progress starting and stopping.
+ProgressRise(CLK := MachineProgress);
+ProgressFall(CLK := MachineProgress);
+
+// ------------------------------------------------------------
+// Timers
+// ------------------------------------------------------------
+
+// Allow time for the completed part to leave the machine.
+UnloadTimer(
+IN := Unloading,
+PT := UnloadTime
+);
+
+// Remove a queued part if no fabrication cycle begins
+// within the timeout period.
+QueueTimeoutTimer(
+IN := (QueueCount > 0)
+AND NOT CycleActive
+AND NOT Unloading
+AND NOT MachineProgress
+AND QueueCount >= 0,
+PT := T#40S
+);
+
+// Generate a one-scan pulse when the queue timeout expires.
+QueueTimeoutEdge(CLK := QueueTimeoutTimer.Q);
+
+IF QueueTimeoutEdge.Q AND QueueCount > 0 THEN
+QueueCount := QueueCount - 1;
+END_IF;
+
+// ------------------------------------------------------------
+// Counter and sequence reset
+// ------------------------------------------------------------
+
+IF ResetCounts THEN
+QueueCount := 0;
+CompletedCount := 0;
+
+
+CycleActive := FALSE;
+Unloading := FALSE;
+
+
+END_IF;
+
+// ------------------------------------------------------------
+// Raw-material pusher control
+// ------------------------------------------------------------
+
+// Push a new material blank only when queue space is available,
+// material is present, and downstream inventory is low.
+IF QueueCount < MaxQueue
+AND MaterialVisible
+AND DownStream < 1
+THEN
+MaterialPush := TRUE;
+
+ELSE
+MaterialPush := FALSE;
+END_IF;
+
+// Add the pushed material to the machine queue.
+IF PushEdge.Q THEN
+QueueCount := QueueCount + 1;
+END_IF;
+
+// ------------------------------------------------------------
+// Fabrication-cycle detection
+// ------------------------------------------------------------
+
+// Consider the fabrication cycle active when the machine reports
+// progress and at least one queued part is available.
+IF MachineProgress
+AND (QueueCount > 0)
+AND NOT Unloading
+THEN
+CycleActive := TRUE;
+END_IF;
+
+// When machining finishes, begin the unloading period so the
+// completed part has time to transfer onto the output belt.
+IF ProgressFall.Q AND CycleActive THEN
+CycleActive := FALSE;
+Unloading := TRUE;
+END_IF;
+
+// Count the completed part only after the unloading period ends.
+IF UnloadTimer.Q AND Unloading THEN
+CompletedCount := CompletedCount + 1;
+
+
+IF QueueCount > 0 THEN
+    QueueCount := QueueCount - 1;
+END_IF;
+
+Unloading := FALSE;
+
+
+END_IF;
+
+// ------------------------------------------------------------
+// Machine control
+// ------------------------------------------------------------
+
+// Keep the machine running while:
+// 1. processing a queued part when downstream capacity exists, or
+// 2. unloading a completed part.
+IF ((QueueCount > 0) AND (DownStream < 2))
+OR Unloading
+THEN
+MachineRun := TRUE;
+MachineStop := FALSE;
+
+ELSE
+MachineRun := FALSE;
+MachineStop := TRUE;
+END_IF;
+
+// ------------------------------------------------------------
+// Material feeder control
+// ------------------------------------------------------------
+
+// Feed automatically when the queue is nearly empty.
+// Otherwise, follow the station-open command.
+IF QueueCount <= 1 THEN
+MaterialFeed := TRUE;
+
+ELSE
+MaterialFeed := StationOpen;
+END_IF;
+
+// ------------------------------------------------------------
+// Pair-reset handling
+// ------------------------------------------------------------
+
+// Clear the completed-part count during pair recovery.
+IF PairResetting THEN
+CompletedCount := 0;
+END_IF;
