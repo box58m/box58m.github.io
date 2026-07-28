@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Mobile Gantry Crane | David Liu</title>
+    <meta
+        name="description"
+        content="A rapid mechatronics prototyping project combining CAD, custom mechanical components, DC motor actuation, Arduino control, and a functional mobile gantry crane."
+    >
+
+    <!-- Use the same stylesheet as the home and Factory I/O pages. -->
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <header class="site-header">
+        <nav class="navbar">
+            <a class="logo" href="../index.html">David Liu</a>
+
+            <div class="nav-links">
+                <a href="../index.html#projects">Projects</a>
+                <a href="../index.html#about">About</a>
+                <a href="../index.html#contact">Contact</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- =====================================================
+             HERO
+             ===================================================== -->
+        <section class="hero project-hero">
+            <div class="hero-content">
+                <p class="eyebrow">Mechatronics Prototyping</p>
+
+                <h1>Mobile Gantry Crane</h1>
+
+                <p class="project-intro">
+                    A rapid prototyping project that combined custom mechanical
+                    design, 3D-printed components, DC motor actuation, breadboard
+                    electronics, and Arduino-based control in a functional mobile
+                    crane.
+                </p>
+
+                <div class="technology-list crane-technology-list">
+                    <span>Fusion 360</span>
+                    <span>Arduino</span>
+                    <span>3D Printing</span>
+                    <span>DC Motors</span>
+                    <span>Rapid Prototyping</span>
+                </div>
+
+                <!-- Replace with the strongest finished-crane image. -->
+                <img
+                    class="project-hero-image"
+                    src="../assets/crane/crane-hero.jpg"
+                    alt="Completed mobile gantry crane prototype"
+                >
+            </div>
+        </section>
+
+        <!-- =====================================================
+             PROJECT OVERVIEW
+             ===================================================== -->
+        <section class="section project-section" id="overview">
+            <div class="section-heading">
+                <p class="eyebrow">Project Overview</p>
+                <h2>From concept to a working physical system</h2>
+                <p>
+                    The project was completed on a compressed timeline, so the
+                    team prioritized mechanical feasibility, fabrication,
+                    electrical integration, and reliable basic motion.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    The objective was to create a stable mobile gantry crane
+                    capable of moving across the floor, translating a suspended
+                    carriage, and lifting an object.
+                </p>
+
+                <p>
+                    The final prototype integrated an aluminum-extrusion frame,
+                    custom carriage and pulley assemblies, a spring-loaded mobile
+                    base, multiple DC motors, breadboard electronics, and simple
+                    Arduino-based drive control.
+                </p>
+            </div>
+
+            <div class="project-feature-grid crane-summary-grid">
+                <article class="project-feature">
+                    <h3>Mechanical Design</h3>
+                    <p>
+                        Custom CAD components were designed around the available
+                        aluminum extrusion, shafts, motors, and fabrication tools.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>System Integration</h3>
+                    <p>
+                        The structure, carriage, transmission, electronics, and
+                        mobile base were assembled into one working prototype.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Functional Result</h3>
+                    <p>
+                        The completed crane demonstrated base movement, carriage
+                        travel, vertical lifting, and object pickup.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             CAD TO PROTOTYPE
+             ===================================================== -->
+        <section class="section project-section" id="development">
+            <div class="section-heading">
+                <p class="eyebrow">Design Development</p>
+                <h2>CAD-guided design and rapid fabrication</h2>
+                <p>
+                    Early CAD work established the crane geometry and helped
+                    determine dimensions for the remaining mechanical subsystems.
+                </p>
+            </div>
+
+            <div class="crane-media-grid crane-media-grid-two">
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/initial-cad.jpg"
+                        alt="Initial CAD model of the gantry crane structure"
+                    >
+                    <figcaption>
+                        Initial structural concept used to establish the overall
+                        size and component layout.
+                    </figcaption>
+                </figure>
+
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/final-prototype.jpg"
+                        alt="Completed physical gantry crane prototype"
+                    >
+                    <figcaption>
+                        Completed crane after mechanical and electrical integration.
+                    </figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             CARRIAGE
+             ===================================================== -->
+        <section class="section project-section" id="carriage">
+            <div class="section-heading">
+                <p class="eyebrow">Carriage System</p>
+                <h2>Using the frame as part of the motion system</h2>
+                <p>
+                    The built-in slots of the aluminum extrusion were used as
+                    rails for a custom carriage carrying the lifting subsystem.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    The carriage was designed around the available 20 mm aluminum
+                    extrusion, reducing the need for a separate linear rail system.
+                    Its plate structure supported the motors, shafts, winches, and
+                    vertical load.
+                </p>
+
+                <p>
+                    Shaft collars and custom 3D-printed spacers provided axial
+                    support and allowed the assembly to be adjusted around the
+                    available hardware.
+                </p>
+            </div>
+
+            <div class="crane-media-grid crane-media-grid-three">
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/carriage-cad-1.jpg"
+                        alt="First CAD view of the crane carriage"
+                    >
+                    <figcaption>Custom carriage CAD, first view.</figcaption>
+                </figure>
+
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/carriage-cad-2.jpg"
+                        alt="Second CAD view of the crane carriage"
+                    >
+                    <figcaption>Custom carriage CAD, second view.</figcaption>
+                </figure>
+
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/carriage-built.jpg"
+                        alt="Assembled crane carriage and lifting mechanism"
+                    >
+                    <figcaption>Assembled carriage and lifting hardware.</figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             TRANSMISSION
+             ===================================================== -->
+        <section class="section project-section" id="transmission">
+            <div class="section-heading">
+                <p class="eyebrow">Transmission Design</p>
+                <h2>Custom winches, pulleys, and line routing</h2>
+                <p>
+                    The lifting and horizontal travel systems used custom
+                    components designed around 5 mm shafts and the available motors.
+                </p>
+            </div>
+
+            <div class="crane-split-layout">
+                <div class="project-text">
+                    <p>
+                        A cone-shaped winch profile helped guide the lifting line,
+                        while a separate line pulled the carriage along the frame.
+                    </p>
+
+                    <p>
+                        The driven horizontal pulley used a textured surface to
+                        improve grip and reduce line slippage. A custom housing
+                        supported the pulley set and accommodated string tension.
+                    </p>
+                </div>
+
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/pulley-cad.jpg"
+                        alt="CAD model of the custom crane pulley"
+                    >
+                    <figcaption>
+                        Custom pulley geometry designed to improve traction on the
+                        horizontal drive line.
+                    </figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             MOBILE BASE
+             ===================================================== -->
+        <section class="section project-section" id="mobile-base">
+            <div class="section-heading">
+                <p class="eyebrow">Mobile Base</p>
+                <h2>Maintaining drive-wheel traction</h2>
+                <p>
+                    A spring-loaded parallel four-bar suspension kept the powered
+                    wheels in contact with the floor while preserving support at
+                    the crane's corners.
+                </p>
+            </div>
+
+            <div class="crane-media-grid crane-media-grid-two">
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/suspension-cad.jpg"
+                        alt="CAD model of the crane wheel suspension"
+                    >
+                    <figcaption>Parallel four-bar suspension concept.</figcaption>
+                </figure>
+
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/suspension-built.jpg"
+                        alt="Completed wheel suspension assembly"
+                    >
+                    <figcaption>
+                        Fabricated suspension and drive-wheel assembly.
+                    </figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             ELECTRONICS AND CONTROL
+             ===================================================== -->
+        <section class="section project-section" id="controls">
+            <div class="section-heading">
+                <p class="eyebrow">Electronics &amp; Control</p>
+                <h2>Simple controls for physical validation</h2>
+                <p>
+                    The controls were intentionally kept straightforward so the
+                    team could validate the complete mechanical system within the
+                    project schedule.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    An Arduino and L298N motor driver controlled the two base
+                    motors using differential drive. Separate bidirectional
+                    controls reversed polarity for the carriage and lifting motors.
+                </p>
+
+                <p>
+                    The implementation supported basic motion testing and object
+                    pickup, but did not include closed-loop position control,
+                    homing, or autonomous task sequencing.
+                </p>
+            </div>
+
+            <div class="crane-control-flow" aria-label="Crane control architecture">
+                <div class="crane-control-node">Operator Input</div>
+                <div class="crane-control-arrow">→</div>
+                <div class="crane-control-node">Arduino / Switches</div>
+                <div class="crane-control-arrow">→</div>
+                <div class="crane-control-node">Motor Drivers</div>
+                <div class="crane-control-arrow">→</div>
+                <div class="crane-control-node">Crane Motors</div>
+            </div>
+
+            <div class="crane-media-grid crane-media-grid-two crane-electronics-grid">
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/base-control-breadboard.jpg"
+                        alt="Breadboard circuit for crane base control"
+                    >
+                    <figcaption>Arduino-based drive-base electronics.</figcaption>
+                </figure>
+
+                <figure class="result-image">
+                    <img
+                        src="../assets/crane/axis-control-breadboard.jpg"
+                        alt="Breadboard controls for carriage and lifting motors"
+                    >
+                    <figcaption>
+                        Horizontal and vertical motor control circuits.
+                    </figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             RESULTS
+             ===================================================== -->
+        <section class="section project-section" id="results">
+            <div class="section-heading">
+                <p class="eyebrow">Final Result</p>
+                <h2>A functional integrated prototype</h2>
+                <p>
+                    The completed crane demonstrated that the structure,
+                    transmission components, electronics, and actuators could
+                    operate together as one mechatronic system.
+                </p>
+            </div>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>Mobile Movement</h3>
+                    <p>
+                        Differential drive enabled forward movement, reverse
+                        movement, and turning.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Carriage Travel</h3>
+                    <p>
+                        The custom carriage moved along the aluminum-extrusion
+                        frame.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Object Lifting</h3>
+                    <p>
+                        The vertical winch system successfully lifted and moved a
+                        suspended load.
+                    </p>
+                </article>
+            </div>
+
+            <div class="demo-card crane-demo-card">
+                <video
+                    controls
+                    playsinline
+                    poster="../assets/crane/demo-poster.jpg"
+                >
+                    <source
+                        src="../assets/crane/crane-demo.mp4"
+                        type="video/mp4"
+                    >
+                    Your browser does not support HTML video.
+                </video>
+
+                <div class="demo-card-content">
+                    <h3>Prototype Demonstration</h3>
+                    <p>
+                        Crane movement, carriage travel, vertical lifting, and
+                        object pickup.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             REFLECTION
+             ===================================================== -->
+        <section class="section project-section" id="reflection">
+            <div class="section-heading">
+                <p class="eyebrow">Reflection</p>
+                <h2>Planned next-stage improvements</h2>
+                <p>
+                    Once the physical architecture was validated, the next
+                    development stage would focus on feedback, repeatability, and
+                    higher-level automation.
+                </p>
+            </div>
+
+            <div class="project-feature-grid crane-future-grid">
+                <article class="project-feature">
+                    <h3>Homing</h3>
+                    <p>
+                        Add limit switches and reference positions for each motion
+                        axis.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Closed-Loop Control</h3>
+                    <p>
+                        Add encoder feedback and PID control for repeatable
+                        positioning.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Automated Sequencing</h3>
+                    <p>
+                        Coordinate base, carriage, and lifting motions into
+                        repeatable pickup routines.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             ASSETS
+             ===================================================== -->
+        <section class="section project-section" id="assets">
+            <div class="section-heading">
+                <p class="eyebrow">Project Assets</p>
+                <h2>Design files and documentation</h2>
+                <p>
+                    The full report, CAD files, Arduino code, and supporting
+                    media can be accessed separately from the main project story.
+                </p>
+            </div>
+
+            <div class="hero-buttons crane-asset-buttons">
+                <a
+                    class="button primary-button"
+                    href="../assets/crane/SE398_ProjectReport.pdf"
+                >
+                    View Project Report
+                </a>
+
+                <a
+                    class="button secondary-button"
+                    href="../assets/crane/cad-files.zip"
+                >
+                    Download CAD Files
+                </a>
+
+                <a
+                    class="button secondary-button"
+                    href="../assets/crane/arduino-code.zip"
+                >
+                    View Arduino Code
+                </a>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             NEXT PROJECT
+             ===================================================== -->
+        <section class="section project-section crane-next-project">
+            <p class="eyebrow">Next Project</p>
+
+            <a class="crane-next-project-link" href="balboa.html">
+                <span>Balboa Self-Balancing Robot</span>
+                <span aria-hidden="true">→</span>
+            </a>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2026 David Liu</p>
+    </footer>
+</body>
+</html>
