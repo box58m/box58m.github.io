@@ -1,1 +1,108 @@
+// --------------------------------------------------
+// Two DC motors with L298N
+// 4 buttons: direction control
+// 10k potentiometer: shared PWM speed control
+// External pull-down resistors on buttons
+// --------------------------------------------------
 
+
+const int ENA = 5;   // PWM for Motor 1
+const int ENB = 6;   // PWM for Motor 2
+
+// L298N direction pins
+const int IN1 = 7;
+const int IN2 = 8;
+
+const int IN3 = 9;
+const int IN4 = 10;
+
+// Buttons with external pull-down resistors
+const int M1_FWD_BUTTON = A1;
+const int M1_REV_BUTTON = A2;
+
+const int M2_FWD_BUTTON = 4;
+const int M2_REV_BUTTON = 11;
+
+// Potentiometer center/wiper pin
+const int POT_PIN = A0;
+
+
+// power ranges from -255 to +255.
+// Positive = forward, negative = reverse, zero = stop.
+void setMotor(int enablePin, int dirPin1, int dirPin2, int power) {
+  power = constrain(power, -255, 255);
+
+  if (power > 0) {
+    digitalWrite(dirPin1, HIGH);
+    digitalWrite(dirPin2, LOW);
+    analogWrite(enablePin, power);
+  }
+  else if (power < 0) {
+    digitalWrite(dirPin1, LOW);
+    digitalWrite(dirPin2, HIGH);
+    analogWrite(enablePin, -power);
+  }
+  else {
+    digitalWrite(dirPin1, LOW);
+    digitalWrite(dirPin2, LOW);
+    analogWrite(enablePin, 0);
+  }
+}
+
+
+void setup() {
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  // External pull-down resistors:
+  // not pressed = LOW, pressed = HIGH
+  pinMode(M1_FWD_BUTTON, INPUT);
+  pinMode(M1_REV_BUTTON, INPUT);
+  pinMode(M2_FWD_BUTTON, INPUT);
+  pinMode(M2_REV_BUTTON, INPUT);
+
+  setMotor(ENA, IN1, IN2, 0);
+  setMotor(ENB, IN3, IN4, 0);
+}
+
+
+void loop() {
+  int potValue = analogRead(POT_PIN);        // 0–1023
+  int pwm = map(potValue, 0, 1023, 0, 255);
+
+  if (pwm > 0 && pwm < 70) {
+    pwm = 70;
+  }
+
+  bool m1Forward = digitalRead(M1_FWD_BUTTON) == HIGH;
+  bool m1Reverse = digitalRead(M1_REV_BUTTON) == HIGH;
+
+  bool m2Forward = digitalRead(M2_FWD_BUTTON) == HIGH;
+  bool m2Reverse = digitalRead(M2_REV_BUTTON) == HIGH;
+
+  int motor1Power = 0;
+  int motor2Power = 0;
+
+  // Both pressed or neither pressed = stop
+  if (m1Forward && !m1Reverse) {
+    motor1Power = pwm;
+  }
+  else if (m1Reverse && !m1Forward) {
+    motor1Power = -pwm;
+  }
+
+  if (m2Forward && !m2Reverse) {
+    motor2Power = pwm;
+  }
+  else if (m2Reverse && !m2Forward) {
+    motor2Power = -pwm;
+  }
+
+  setMotor(ENA, IN1, IN2, motor1Power);
+  setMotor(ENB, IN3, IN4, motor2Power);
+}
