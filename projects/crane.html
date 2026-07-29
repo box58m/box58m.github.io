@@ -383,27 +383,47 @@
                 </article>
             </div>
 
-            <div class="demo-card crane-demo-card">
-                <video
-                    controls
-                    playsinline
-                    poster="../assets/crane/demo-poster.jpg"
-                >
-                    <source
-                        src="../assets/crane/crane-demo.mp4"
-                        type="video/mp4"
-                    >
-                    Your browser does not support HTML video.
-                </video>
+            <div class="crane-demo-grid">
 
-                <div class="demo-card-content">
-                    <h3>Prototype Demonstration</h3>
-                    <p>
-                        Crane movement, carriage travel, vertical lifting, and
-                        object pickup.
-                    </p>
-                </div>
-            </div>
+    <article class="demo-card">
+        <video controls playsinline>
+            <source
+                src="../assets/crane/carriage-demo.mp4"
+                type="video/mp4"
+            >
+            Your browser does not support HTML video.
+        </video>
+
+        <div class="demo-card-content">
+            <h3>Carriage and Lifting Motion</h3>
+            <p>
+                Demonstration of the carriage traveling along the gantry and
+                operating the vertical lifting mechanism.
+            </p>
+        </div>
+    </article>
+
+    <article class="demo-card">
+        <video controls playsinline>
+            <source
+                src="../assets/crane/drive-demo.mp4"
+                type="video/mp4"
+            >
+            Your browser does not support HTML video.
+        </video>
+
+        <div class="demo-card-content">
+            <h3>Mobile Base Movement</h3>
+            <p>
+                Demonstration of the differential-drive base translating and
+                turning under Arduino-based motor control.
+            </p>
+        </div>
+    </article>
+
+</div>
+
+            
         </section>
 
         <!-- =====================================================
