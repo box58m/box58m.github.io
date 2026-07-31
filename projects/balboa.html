@@ -1,1 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <title>Self-Balancing Balboa Robot | David Liu</title>
+
+    <meta
+        name="description"
+        content="A two-wheel self-balancing robot developed using Arduino, IMU sensing, encoder feedback, motor control, and a custom feedback controller."
+    >
+
+    <link rel="stylesheet" href="../style.css">
+</head>
+
+<body>
+
+    <header class="site-header">
+        <nav class="navbar">
+            <a class="logo" href="../index.html">David Liu</a>
+
+            <div class="nav-links">
+                <a href="../index.html#projects">Projects</a>
+                <a href="../index.html#about">About</a>
+                <a href="../index.html#contact">Contact</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+
+        <!-- Project Hero -->
+        <section class="section project-hero">
+            <p class="eyebrow">Embedded Controls • Robotics</p>
+
+            <h1>Self-Balancing Balboa Robot</h1>
+
+            <p class="project-intro">
+                A two-wheel balancing robot developed through iterative sensor
+                calibration, feedback-controller design, encoder integration,
+                and real-world disturbance testing.
+            </p>
+
+            <div class="technology-list">
+                <span>Arduino</span>
+                <span>C++</span>
+                <span>Feedback Control</span>
+                <span>IMU</span>
+                <span>Encoders</span>
+                <span>Motor Control</span>
+            </div>
+
+            <img
+                class="project-hero-image"
+                src="../assets/images/balboa/balboa-overview.jpg"
+                alt="Pololu Balboa two-wheel self-balancing robot"
+            >
+        </section>
+
+
+        <!-- Project Overview -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Project Overview</p>
+                <h2>Balancing an unstable physical system</h2>
+
+                <p>
+                    The goal of this project was to develop a controller that
+                    allows a two-wheel robot to balance upright, respond to
+                    external disturbances, and recover from moderate changes
+                    in position and velocity.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    A two-wheel balancing robot behaves like an inverted
+                    pendulum. Without continuous correction, gravity causes the
+                    robot to accelerate away from its upright position.
+                </p>
+
+                <p>
+                    The controller therefore has to estimate the robot’s angle,
+                    determine how quickly it is falling, and command the motors
+                    quickly enough to move the wheels underneath its center of
+                    mass.
+                </p>
+
+                <p>
+                    The project was developed on the Pololu Balboa 32U4 platform.
+                    An onboard inertial measurement unit provides angular
+                    information, while wheel encoders measure translational
+                    movement. These measurements are combined in a custom
+                    feedback controller running on the robot’s microcontroller.
+                </p>
+            </div>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>Platform</h3>
+                    <p>
+                        Pololu Balboa 32U4 robot with differential-drive motors,
+                        wheel encoders, and an onboard ATmega32U4 controller.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Sensing</h3>
+                    <p>
+                        IMU measurements provide tilt and angular velocity,
+                        while quadrature encoders track wheel speed and position.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Controller</h3>
+                    <p>
+                        A custom controller combines angle, angular velocity,
+                        wheel velocity, and wheel position feedback.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+
+        <!-- Demonstration -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Demonstration</p>
+                <h2>Balance and disturbance recovery</h2>
+
+                <p>
+                    The final system demonstrates autonomous balancing,
+                    kick-start activation, and recovery after external
+                    disturbances.
+                </p>
+            </div>
+
+            <div class="crane-demo-grid">
+
+                <article class="demo-card">
+                    <video
+                        controls
+                        muted
+                        loop
+                        playsinline
+                        preload="metadata"
+                    >
+                        <source
+                            src="../assets/images/balboa/balancing-demo.mp4"
+                            type="video/mp4"
+                        >
+
+                        Your browser does not support the video element.
+                    </video>
+
+                    <div class="demo-card-content">
+                        <h3>Autonomous Balancing</h3>
+
+                        <p>
+                            The robot maintains an upright position through
+                            continuous motor corrections based on IMU and
+                            encoder feedback.
+                        </p>
+                    </div>
+                </article>
+
+                <article class="demo-card">
+                    <video
+                        controls
+                        muted
+                        loop
+                        playsinline
+                        preload="metadata"
+                    >
+                        <source
+                            src="../assets/images/balboa/disturbance-rejection.mp4"
+                            type="video/mp4"
+                        >
+
+                        Your browser does not support the video element.
+                    </video>
+
+                    <div class="demo-card-content">
+                        <h3>Disturbance Rejection</h3>
+
+                        <p>
+                            The controller responds to a physical push by
+                            accelerating the wheels, recovering the robot’s
+                            angle, and returning toward its original position.
+                        </p>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+
+        <!-- System Architecture -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">System Architecture</p>
+                <h2>From sensor measurements to motor commands</h2>
+
+                <p>
+                    The control loop continuously converts the robot’s measured
+                    motion into a corrective motor command.
+                </p>
+            </div>
+
+            <figure class="control-architecture-diagram">
+                <img
+                    src="../assets/images/balboa/control-architecture.png"
+                    alt="Control architecture diagram for the self-balancing robot"
+                >
+
+                <figcaption>
+                    IMU and encoder measurements are processed by the feedback
+                    controller, which calculates a motor command for both drive
+                    wheels.
+                </figcaption>
+            </figure>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>1. Measure</h3>
+                    <p>
+                        Read angular velocity from the gyroscope and wheel
+                        displacement from the motor encoders.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>2. Estimate</h3>
+                    <p>
+                        Estimate the robot’s tilt angle and calculate wheel
+                        velocity and accumulated position.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>3. Correct</h3>
+                    <p>
+                        Combine the feedback terms and apply the resulting
+                        command to the left and right motors.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+
+        <!-- Sensor Calibration -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Sensor Calibration</p>
+                <h2>Establishing a reliable upright reference</h2>
+
+                <p>
+                    Reliable balance control depends on accurate angle and
+                    angular-velocity measurements.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    Early testing showed that the estimated angle did not match
+                    the robot’s physical orientation. When the robot appeared
+                    upright, the controller could report a significant tilt.
+                    This caused the motors to apply a correction even when the
+                    chassis was near its true balancing position.
+                </p>
+
+                <p>
+                    A startup calibration routine was added to measure the
+                    stationary gyroscope bias. An angle offset was then used to
+                    align the controller’s zero-angle reference with the
+                    robot’s physical balance point.
+                </p>
+
+                <p>
+                    The robot’s true balance point is not necessarily perfectly
+                    vertical because the battery, circuit board, motors, and
+                    chassis do not create a perfectly symmetric mass
+                    distribution.
+                </p>
+            </div>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>Gyroscope Bias</h3>
+                    <p>
+                        Stationary gyroscope samples are averaged during startup
+                        and removed from future angular-rate measurements.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Angle Offset</h3>
+                    <p>
+                        The reference angle is adjusted experimentally to match
+                        the robot’s actual center-of-mass balance point.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Activation Thresholds</h3>
+                    <p>
+                        The controller activates only when the robot is within a
+                        safe starting range and shuts down after a large fall.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+
+        <!-- Feedback Controller -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Feedback Controller</p>
+                <h2>Combining balance and motion feedback</h2>
+
+                <p>
+                    The final controller uses four feedback terms to respond to
+                    both rotational and translational motion.
+                </p>
+            </div>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>Angle Feedback</h3>
+                    <p>
+                        The proportional term generates a correction based on
+                        how far the robot is tilted away from its target angle.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Angular-Rate Feedback</h3>
+                    <p>
+                        The derivative term reacts to the speed of the fall and
+                        provides damping during rapid angular movement.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Wheel-Velocity Feedback</h3>
+                    <p>
+                        Encoder velocity helps the controller recognize
+                        translational movement and resist continued acceleration.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Wheel-Position Feedback</h3>
+                    <p>
+                        Accumulated encoder position gradually encourages the
+                        robot to return toward its original operating region.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Command Accumulation</h3>
+                    <p>
+                        Controller outputs are accumulated into the motor command
+                        so the robot can build sufficient response during a fall.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Command Leakage</h3>
+                    <p>
+                        A small decay factor prevents accumulated motor commands
+                        from remaining indefinitely after the disturbance ends.
+                    </p>
+                </article>
+            </div>
+
+            <div class="code-block">
+                <pre><code>angleError = measuredAngle - targetAngle;
+
+P = Kp * angleError;
+D = -Kd * angularVelocity;
+V = -Kv * wheelVelocity;
+X = -Kx * wheelPosition;
+
+motorCommand += P + D + V + X;
+motorCommand *= commandLeak;
+
+motorCommand = constrain(
+    motorCommand,
+    -motorLimit,
+    motorLimit
+);</code></pre>
+            </div>
+
+            <div class="code-description">
+                <p>
+                    The proportional and derivative terms stabilize the robot’s
+                    rotational motion. Encoder velocity and position feedback
+                    reduce continued wheel movement and help limit horizontal
+                    travel.
+                </p>
+
+                <p>
+                    The controller uses an accumulated motor command rather than
+                    sending only the instantaneous feedback result. This helps
+                    overcome motor dead zones and provides a stronger response
+                    during rapidly developing falls.
+                </p>
+            </div>
+        </section>
+
+
+        <!-- Control Loop -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Embedded Implementation</p>
+                <h2>Real-time control loop</h2>
+
+                <p>
+                    The controller runs repeatedly at a fixed update interval on
+                    the Balboa’s embedded microcontroller.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    Each cycle reads the sensors, updates the angle estimate,
+                    calculates encoder velocity and position, evaluates the
+                    feedback controller, and sends the final command to the
+                    motors.
+                </p>
+
+                <p>
+                    Maintaining a consistent loop interval is important because
+                    sensor integration, velocity calculation, and controller
+                    response all depend on elapsed time.
+                </p>
+            </div>
+
+            <div class="code-block">
+                <pre><code>void balanceController()
+{
+    readIMU();
+    updateAngleEstimate();
+
+    readEncoderCounts();
+    updateWheelVelocity();
+    updateWheelPosition();
+
+    calculateFeedbackTerms();
+    updateMotorCommand();
+
+    applyDeadzoneCompensation();
+    synchronizeMotors();
+    setMotorSpeeds();
+}</code></pre>
+            </div>
+        </section>
+
+
+        <!-- Kick Start -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Kick Start</p>
+                <h2>Entering balance without external commands</h2>
+
+                <p>
+                    The robot automatically recognizes when it has been raised
+                    into the balancing region and begins active stabilization.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    When the robot is lying down, the motors remain disabled.
+                    As the chassis is raised toward the upright position, the
+                    measured angle eventually enters an activation window.
+                </p>
+
+                <p>
+                    At that point, the controller initializes its internal
+                    position and motor-command values before beginning the
+                    balancing loop. This avoids carrying old controller states
+                    into a new balancing attempt.
+                </p>
+
+                <p>
+                    If the robot falls beyond a separate shutdown threshold,
+                    motor output is disabled to prevent the wheels from
+                    continuing to run while the robot is on the ground.
+                </p>
+            </div>
+
+            <figure class="result-image">
+                <img
+                    src="../assets/images/balboa/kick-start-sequence.jpg"
+                    alt="Sequence showing the balancing robot entering the upright position"
+                >
+
+                <figcaption>
+                    The robot transitions from an inactive state to active
+                    balancing when its measured angle enters the permitted
+                    startup range.
+                </figcaption>
+            </figure>
+        </section>
+
+
+        <!-- Tuning Process -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Controller Tuning</p>
+                <h2>Developed through physical testing</h2>
+
+                <p>
+                    Controller development required repeated testing because
+                    each feedback term changes the robot’s physical behavior.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    Initial proportional-only tests caused the robot to chase
+                    its falling angle without adequately slowing its motion.
+                    Adding angular-rate feedback improved damping, but excessive
+                    derivative response made the motors react aggressively to
+                    sensor noise.
+                </p>
+
+                <p>
+                    Encoder velocity was introduced to help the robot recognize
+                    when the wheels were moving rapidly across the floor.
+                    Position feedback was then added to reduce long-distance
+                    drift and encourage the system to return toward its initial
+                    location.
+                </p>
+
+                <p>
+                    Debug output was streamed through the serial monitor during
+                    testing. The recorded angle, gyroscope rate, wheel speed,
+                    wheel position, individual feedback terms, and final motor
+                    command made it possible to identify sign errors,
+                    saturation, delayed response, and excessive correction.
+                </p>
+            </div>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>Sign Verification</h3>
+                    <p>
+                        Each feedback term was tested to confirm that it commanded
+                        the wheels in the direction needed to oppose a fall.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Gain Adjustment</h3>
+                    <p>
+                        Gains were increased or reduced based on oscillation,
+                        fall response, wheel acceleration, and recovery behavior.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Output Limiting</h3>
+                    <p>
+                        Individual terms and the final motor command were limited
+                        to prevent a single measurement from dominating control.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+
+        <!-- Engineering Challenges -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Engineering Challenges</p>
+                <h2>Problems solved during development</h2>
+            </div>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>Incorrect Feedback Direction</h3>
+                    <p>
+                        Early motor commands accelerated the robot in the
+                        direction of the fall. Feedback signs were verified
+                        individually and corrected through controlled testing.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Inaccurate Upright Angle</h3>
+                    <p>
+                        IMU bias and chassis mass distribution caused the
+                        measured zero angle to differ from the physical balance
+                        point.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Motor Dead Zone</h3>
+                    <p>
+                        Small PWM commands were insufficient to move the motors.
+                        Minimum effective motor commands were added after the
+                        controller selected a direction.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Horizontal Drift</h3>
+                    <p>
+                        Angle control alone could maintain balance while allowing
+                        the robot to travel. Encoder feedback was added to manage
+                        wheel velocity and position.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Motor Mismatch</h3>
+                    <p>
+                        Differences between the left and right drivetrains could
+                        create turning during balancing. Encoder measurements
+                        were used to evaluate wheel synchronization.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Command Saturation</h3>
+                    <p>
+                        Rapid falls could produce large feedback values.
+                        Constraints were introduced to keep motor commands within
+                        a controllable operating range.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+
+        <!-- Results -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Results</p>
+                <h2>A stable embedded control demonstration</h2>
+
+                <p>
+                    The completed robot demonstrates the central behaviors
+                    required for a two-wheel balancing platform.
+                </p>
+            </div>
+
+            <div class="project-text">
+                <p>
+                    The robot can enter balance when raised into its activation
+                    region, maintain an upright position through continuous
+                    feedback, and respond to moderate physical disturbances.
+                </p>
+
+                <p>
+                    The project also demonstrates the practical difference
+                    between controlling orientation and controlling the motion
+                    of the entire system. Angle and angular-rate feedback are
+                    responsible for immediate balance, while encoder feedback
+                    manages the wheel movement required to support that balance.
+                </p>
+
+                <p>
+                    More importantly, the project provided experience with
+                    embedded sensing, real-time control, actuator limitations,
+                    experimental gain tuning, and debugging a controller through
+                    measured physical behavior.
+                </p>
+            </div>
+
+            <div class="project-feature-grid">
+                <article class="project-feature">
+                    <h3>Autonomous Start</h3>
+                    <p>
+                        Automatically activates when raised into the balancing
+                        region.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Active Stabilization</h3>
+                    <p>
+                        Continuously corrects angle and angular velocity using
+                        motor motion.
+                    </p>
+                </article>
+
+                <article class="project-feature">
+                    <h3>Disturbance Recovery</h3>
+                    <p>
+                        Responds to moderate external pushes and returns toward
+                        its operating position.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+
+        <!-- Repository -->
+        <section class="section project-section">
+            <div class="section-heading">
+                <p class="eyebrow">Project Files</p>
+                <h2>Source code and documentation</h2>
+
+                <p>
+                    The controller source code and supporting project materials
+                    are available through GitHub.
+                </p>
+            </div>
+
+            <div class="hero-buttons">
+                <a
+                    class="button primary-button"
+                    href="https://github.com/box58m"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    View Source Code
+                </a>
+
+                <a
+                    class="button secondary-button"
+                    href="../index.html#projects"
+                >
+                    Back to Projects
+                </a>
+            </div>
+        </section>
+
+
+        <!-- Next Project -->
+        <section class="section crane-next-project">
+            <p class="eyebrow">Next Project</p>
+
+            <a
+                class="crane-next-project-link"
+                href="crane.html"
+            >
+                <span>Mobile Gantry Crane</span>
+                <span aria-hidden="true">→</span>
+            </a>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>© 2026 David Liu. Built with HTML and CSS.</p>
+    </footer>
+
+</body>
+</html>
