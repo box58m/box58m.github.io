@@ -459,6 +459,129 @@ motorCommand = constrain(
             </div>
         </section>
 
+        <!-- Motor Dead-Zone Compensation -->
+<section class="section project-section">
+    <div class="section-heading">
+        <p class="eyebrow">Actuator Compensation</p>
+
+        <h2>Overcoming the motor dead zone</h2>
+
+        <p>
+            Small PWM commands were not sufficient to overcome static friction
+            in the drivetrain, creating a region where the controller requested
+            motion but the wheels did not respond.
+        </p>
+    </div>
+
+    <div class="project-text">
+        <p>
+            Near the upright position, the controller often generates relatively
+            small corrective commands. Without compensation, these commands can
+            fall below the minimum voltage required to start the motors. The robot
+            therefore continues to tilt while the wheels remain stationary, and
+            the controller must wait until the error becomes large enough to
+            produce a usable motor command.
+        </p>
+
+        <p>
+            Dead-zone compensation preserves the direction and relative magnitude
+            of the controller output while adding a minimum effective PWM value.
+            This allows small corrective commands to produce immediate wheel
+            movement instead of being lost inside the drivetrain’s inactive region.
+        </p>
+    </div>
+
+    <div class="crane-demo-grid">
+
+        <article class="demo-card">
+            <video
+                controls
+                muted
+                loop
+                playsinline
+                preload="metadata"
+            >
+                <source
+                    src="../assets/images/balboa/before-deadzone-compensation.mp4"
+                    type="video/mp4"
+                >
+
+                Your browser does not support the video element.
+            </video>
+
+            <div class="demo-card-content">
+                <h3>Before Compensation</h3>
+
+                <p>
+                    Small control outputs do not move the wheels. The robot must
+                    develop a larger angle error before the motors begin responding,
+                    producing delayed and abrupt corrections.
+                </p>
+            </div>
+        </article>
+
+        <article class="demo-card">
+            <video
+                controls
+                muted
+                loop
+                playsinline
+                preload="metadata"
+            >
+                <source
+                    src="../assets/images/balboa/after-deadzone-compensation.mp4"
+                    type="video/mp4"
+                >
+
+                Your browser does not support the video element.
+            </video>
+
+            <div class="demo-card-content">
+                <h3>After Compensation</h3>
+
+                <p>
+                    Minimum effective PWM values allow the wheels to respond to
+                    smaller corrections, reducing delayed motor activation and
+                    improving balance near the upright position.
+                </p>
+            </div>
+        </article>
+
+    </div>
+
+    <div class="code-block">
+        <pre><code>int compensateDeadzone(float command, int minimumPWM)
+{
+    if (command > 0)
+    {
+        return command + minimumPWM;
+    }
+
+    if (command < 0)
+    {
+        return command - minimumPWM;
+    }
+
+    return 0;
+}</code></pre>
+    </div>
+
+    <div class="code-description">
+        <p>
+            Compensation is applied only after the controller determines the
+            desired direction. A positive command receives a positive minimum
+            offset, while a negative command receives a negative minimum offset.
+            A zero command remains zero so the motors do not move when no
+            correction is requested.
+        </p>
+
+        <p>
+            Separate values can be used for the left and right motors to account
+            for differences in drivetrain friction and motor response.
+        </p>
+    </div>
+</section>
+
 
         <!-- Kick Start -->
         <section class="section project-section">
