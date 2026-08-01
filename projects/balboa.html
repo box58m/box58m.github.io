@@ -66,33 +66,21 @@
                 <h2>Balancing an unstable physical system</h2>
 
                 <p>
-                    The goal of this project was to develop a controller that
-                    allows a two-wheel robot to balance upright, respond to
-                    external disturbances, and recover from moderate changes
-                    in position and velocity.
+                    The project combines IMU sensing, encoder feedback, and motor
+                    control to balance upright and recover from disturbances.
                 </p>
             </div>
 
             <div class="project-text">
                 <p>
-                    A two-wheel balancing robot behaves like an inverted
-                    pendulum. Without continuous correction, gravity causes the
-                    robot to accelerate away from its upright position.
+                    Like an inverted pendulum, the robot requires continuous
+                    correction to remain upright. The controller estimates tilt
+                    and fall rate, then moves the wheels beneath the center of mass.
                 </p>
 
                 <p>
-                    The controller therefore has to estimate the robot’s angle,
-                    determine how quickly it is falling, and command the motors
-                    quickly enough to move the wheels underneath its center of
-                    mass.
-                </p>
-
-                <p>
-                    The project was developed on the Pololu Balboa 32U4 platform.
-                    An onboard inertial measurement unit provides angular
-                    information, while wheel encoders measure translational
-                    movement. These measurements are combined in a custom
-                    feedback controller running on the robot’s microcontroller.
+                    The Pololu Balboa 32U4 supplies IMU measurements, wheel-encoder
+                    feedback, and onboard processing for the control loop.
                 </p>
             </div>
 
@@ -131,9 +119,8 @@
                 <h2>Balance and disturbance recovery</h2>
 
                 <p>
-                    The final system demonstrates autonomous balancing,
-                    kick-start activation, and recovery after external
-                    disturbances.
+                    The final system balances autonomously, rejects disturbances,
+                    and transitions into balance through a kick-start sequence.
                 </p>
             </div>
 
@@ -204,8 +191,8 @@
                 <h2>From sensor measurements to motor commands</h2>
 
                 <p>
-                    The control loop continuously converts the robot’s measured
-                    motion into a corrective motor command.
+                    Sensor measurements are converted into corrective motor commands
+                    through a closed feedback loop.
                 </p>
             </div>
 
@@ -257,32 +244,21 @@
                 <h2>Establishing a reliable upright reference</h2>
 
                 <p>
-                    Reliable balance control depends on accurate angle and
-                    angular-velocity measurements.
+                    Stable control begins with an accurate upright reference.
                 </p>
             </div>
 
             <div class="project-text">
                 <p>
-                    Early testing showed that the estimated angle did not match
-                    the robot’s physical orientation. When the robot appeared
-                    upright, the controller could report a significant tilt.
-                    This caused the motors to apply a correction even when the
-                    chassis was near its true balancing position.
+                    Early tests showed a mismatch between the measured angle and
+                    the robot’s physical balance point, causing unnecessary motor
+                    corrections near upright.
                 </p>
 
                 <p>
-                    A startup calibration routine was added to measure the
-                    stationary gyroscope bias. An angle offset was then used to
-                    align the controller’s zero-angle reference with the
-                    robot’s physical balance point.
-                </p>
-
-                <p>
-                    The robot’s true balance point is not necessarily perfectly
-                    vertical because the battery, circuit board, motors, and
-                    chassis do not create a perfectly symmetric mass
-                    distribution.
+                    Startup gyro calibration removes stationary bias, while an
+                    experimentally determined angle offset aligns the controller
+                    with the chassis’s actual center of mass.
                 </p>
             </div>
 
@@ -321,8 +297,7 @@
                 <h2>Combining balance and motion feedback</h2>
 
                 <p>
-                    The final controller uses four feedback terms to respond to
-                    both rotational and translational motion.
+                    Four feedback terms regulate both body angle and wheel motion.
                 </p>
             </div>
 
@@ -396,17 +371,14 @@ motorCommand = constrain(
 
             <div class="code-description">
                 <p>
-                    The proportional and derivative terms stabilize the robot’s
-                    rotational motion. Encoder velocity and position feedback
-                    reduce continued wheel movement and help limit horizontal
-                    travel.
+                    Angle and angular-rate feedback stabilize rotation, while
+                    encoder velocity and position reduce drift and horizontal travel.
                 </p>
 
                 <p>
-                    The controller uses an accumulated motor command rather than
-                    sending only the instantaneous feedback result. This helps
-                    overcome motor dead zones and provides a stronger response
-                    during rapidly developing falls.
+                    Accumulating the controller output builds a stronger response
+                    during a fall, while command leakage prevents that response
+                    from persisting indefinitely.
                 </p>
             </div>
         </section>
@@ -419,23 +391,16 @@ motorCommand = constrain(
                 <h2>Real-time control loop</h2>
 
                 <p>
-                    The controller runs repeatedly at a fixed update interval on
-                    the Balboa’s embedded microcontroller.
+                    The control loop runs at a fixed interval on the Balboa
+                    microcontroller.
                 </p>
             </div>
 
             <div class="project-text">
                 <p>
-                    Each cycle reads the sensors, updates the angle estimate,
-                    calculates encoder velocity and position, evaluates the
-                    feedback controller, and sends the final command to the
-                    motors.
-                </p>
-
-                <p>
-                    Maintaining a consistent loop interval is important because
-                    sensor integration, velocity calculation, and controller
-                    response all depend on elapsed time.
+                    Each cycle updates the IMU and encoder states, evaluates the
+                    controller, applies actuator compensation, and commands the motors.
+                    A consistent loop period keeps these calculations predictable.
                 </p>
             </div>
 
@@ -467,27 +432,16 @@ motorCommand = constrain(
         <h2>Overcoming the motor dead zone</h2>
 
         <p>
-            Small PWM commands were not sufficient to overcome static friction
-            in the drivetrain, creating a region where the controller requested
-            motion but the wheels did not respond.
+            Low PWM commands could not overcome drivetrain friction, delaying
+            corrective wheel motion.
         </p>
     </div>
 
     <div class="project-text">
         <p>
-            Near the upright position, the controller often generates relatively
-            small corrective commands. Without compensation, these commands can
-            fall below the minimum voltage required to start the motors. The robot
-            therefore continues to tilt while the wheels remain stationary, and
-            the controller must wait until the error becomes large enough to
-            produce a usable motor command.
-        </p>
-
-        <p>
-            Dead-zone compensation preserves the direction and relative magnitude
-            of the controller output while adding a minimum effective PWM value.
-            This allows small corrective commands to produce immediate wheel
-            movement instead of being lost inside the drivetrain’s inactive region.
+            Near upright, small controller outputs often fell inside the motor
+            dead zone. Adding a minimum effective PWM offset allowed those commands
+            to produce immediate motion without changing their direction.
         </p>
     </div>
 
@@ -568,16 +522,8 @@ motorCommand = constrain(
 
     <div class="code-description">
         <p>
-            Compensation is applied only after the controller determines the
-            desired direction. A positive command receives a positive minimum
-            offset, while a negative command receives a negative minimum offset.
-            A zero command remains zero so the motors do not move when no
-            correction is requested.
-        </p>
-
-        <p>
-            Separate values can be used for the left and right motors to account
-            for differences in drivetrain friction and motor response.
+            The offset follows the command direction, while a zero command remains
+            zero. Separate left and right values compensate for drivetrain mismatch.
         </p>
     </div>
 </section>
@@ -590,25 +536,15 @@ motorCommand = constrain(
         <h2>Transitioning from rest into active balance</h2>
 
         <p>
-            A button-triggered state machine uses a high-power motor pulse and
-            controlled braking to raise the robot from its resting position
-            before transferring control to the balance controller.
+            A button-triggered state machine uses a motor pulse and braking phase
+            to raise the robot before handing control to the balance loop.
         </p>
     </div>
 
     <div class="project-text">
         <p>
-            The robot begins in an inactive state while resting on the ground.
-            After the start command is given, the motors generate a short,
-            high-power pulse that rotates the chassis toward the upright
-            position.
-        </p>
-
-        <p>
-            The controller then applies braking to convert the robot’s momentum
-            into upward rotation. Once the measured angle enters the catch
-            region, the kick-start routine ends and the normal feedback
-            controller takes over.
+            The motors first generate momentum, then brake near upright. Once the
+            chassis enters the catch region, the normal balance controller takes over.
         </p>
     </div>
 
@@ -671,34 +607,20 @@ motorCommand = constrain(
                 <h2>Developed through physical testing</h2>
 
                 <p>
-                    Controller development required repeated testing because
-                    each feedback term changes the robot’s physical behavior.
+                    Controller gains were refined through repeated physical testing.
                 </p>
             </div>
 
             <div class="project-text">
                 <p>
-                    Initial proportional-only tests caused the robot to chase
-                    its falling angle without adequately slowing its motion.
-                    Adding angular-rate feedback improved damping, but excessive
-                    derivative response made the motors react aggressively to
-                    sensor noise.
+                    Proportional control alone chased the falling angle. Angular-rate
+                    feedback added damping, while encoder velocity and position terms
+                    reduced wheel acceleration and drift.
                 </p>
 
                 <p>
-                    Encoder velocity was introduced to help the robot recognize
-                    when the wheels were moving rapidly across the floor.
-                    Position feedback was then added to reduce long-distance
-                    drift and encourage the system to return toward its initial
-                    location.
-                </p>
-
-                <p>
-                    Debug output was streamed through the serial monitor during
-                    testing. The recorded angle, gyroscope rate, wheel speed,
-                    wheel position, individual feedback terms, and final motor
-                    command made it possible to identify sign errors,
-                    saturation, delayed response, and excessive correction.
+                    Serial logs of angle, gyro rate, wheel motion, feedback terms,
+                    and motor output exposed sign errors, saturation, and delayed response.
                 </p>
             </div>
 
@@ -802,31 +724,21 @@ motorCommand = constrain(
                 <h2>A stable embedded control demonstration</h2>
 
                 <p>
-                    The completed robot demonstrates the central behaviors
-                    required for a two-wheel balancing platform.
+                    The completed system demonstrates stable balancing and practical
+                    disturbance recovery.
                 </p>
             </div>
 
             <div class="project-text">
                 <p>
-                    The robot can enter balance when raised into its activation
-                    region, maintain an upright position through continuous
-                    feedback, and respond to moderate physical disturbances.
+                    The robot can stand up through its kick-start sequence, maintain
+                    balance, and recover from moderate external pushes.
                 </p>
 
                 <p>
-                    The project also demonstrates the practical difference
-                    between controlling orientation and controlling the motion
-                    of the entire system. Angle and angular-rate feedback are
-                    responsible for immediate balance, while encoder feedback
-                    manages the wheel movement required to support that balance.
-                </p>
-
-                <p>
-                    More importantly, the project provided experience with
-                    embedded sensing, real-time control, actuator limitations,
-                    experimental gain tuning, and debugging a controller through
-                    measured physical behavior.
+                    The project demonstrates embedded sensing, real-time feedback,
+                    actuator compensation, and experimental controller tuning on a
+                    physical unstable system.
                 </p>
             </div>
 
