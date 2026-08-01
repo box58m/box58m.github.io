@@ -1,0 +1,516 @@
+#include <Wire.h>
+#include <Balboa32U4.h>
+#include <LSM6.h>
+
+LSM6 imu;
+Balboa32U4Encoders encoders;
+
+#define DEBUG_PRINT 1
+
+// -----------------------------
+// Motor pins
+// -----------------------------
+const int Right_Dir = 15;
+const int Left_Dir  = 16;
+const int Right_pwm = 9;
+const int Left_pwm  = 10;
+
+// -----------------------------
+// Controller constants
+// -----------------------------
+float Kp = 0.4;      // Angle response
+float Kd = 0.05;     // Gyro / angular velocity response
+float Kv = 0.095;    // Wheel speed response
+float Kx = 0.0018;   // Wheel position response
+
+const float MOTOR_LIMIT = 180.0;
+const float MIN_PWM_L = 0.0;
+const float MIN_PWM_R = 0.0;
+
+float wheelPosition = 0.0;
+float LeftPosition = 0.0;
+float RightPosition = 0.0;
+
+static float motorCommand = 0;
+
+const float leak = 0.999;
+const float syncGain = 0.02;
+
+// -----------------------------
+// Stand-up sequence constants
+// -----------------------------
+const unsigned long STANDUP_DELAY_MS = 1000;
+const unsigned long BALANCE_START_DELAY_MS = 1000;
+
+const int STANDUP_KICK_PWM = 130;
+const int STANDUP_REVERSE_PWM = 100;
+
+const unsigned long STANDUP_KICK_TIME_MS = 400;
+const unsigned long STANDUP_REVERSE_TIMEOUT_MS = 400;
+
+const float STANDUP_CATCH_ANGLE = 30.0;
+
+// -----------------------------
+// Buttons
+// -----------------------------
+Balboa32U4ButtonA buttonA;
+Balboa32U4ButtonB buttonB;
+
+// -----------------------------
+// Timing
+// -----------------------------
+const unsigned long UPDATE_TIME_MS = 10;
+
+// -----------------------------
+// State variables
+// -----------------------------
+float angle_est = 0.0;     // degrees
+float gyroBias = 0.0;      // raw gyro bias
+float angleOffset = 6;
+
+bool isBalancing = false;
+
+const float START_BALANCING_ANGLE_DEG = 30.0;
+const float STOP_BALANCING_ANGLE_DEG  = 45.0;
+
+// -----------------------------
+// Robot state machine
+// -----------------------------
+enum RobotState
+{
+  STATE_FALLEN,
+  STATE_STANDUP_WAIT,
+  STATE_STANDUP_KICK,
+  STATE_STANDUP_REVERSE,
+  STATE_BALANCE_WAIT,
+  STATE_BALANCING
+};
+
+RobotState robotState = STATE_FALLEN;
+unsigned long stateStartTime = 0;
+
+// =====================================================
+// Setup
+// =====================================================
+
+void setup()
+{
+  Serial.begin(115200);
+
+  pinMode(Right_Dir, OUTPUT);
+  pinMode(Left_Dir, OUTPUT);
+  pinMode(Right_pwm, OUTPUT);
+  pinMode(Left_pwm, OUTPUT);
+
+  Wire.begin();
+
+  if (!imu.init())
+  {
+    Serial.println("Failed to detect IMU.");
+    while (1);
+  }
+
+  imu.enableDefault();
+
+  // IMU settings
+  imu.writeReg(LSM6::CTRL2_G, 0b10001000);   // Gyro ±1000 dps
+  imu.writeReg(LSM6::CTRL1_XL, 0b10000100);  // Accel ±16 g
+
+  calibrateGyro();
+
+  // Initialize angle estimate from accelerometer
+  imu.read();
+  angle_est = getAccelAngle();
+
+  stopMotors();
+}
+
+// =====================================================
+// Main loop
+// =====================================================
+
+void loop()
+{
+  static unsigned long lastTime = millis();
+  unsigned long now = millis();
+
+  // Run controller at fixed update interval
+  if (now - lastTime < UPDATE_TIME_MS)
+  {
+    return;
+  }
+
+  float dt = (now - lastTime) / 1000.0;
+  lastTime = now;
+
+  imu.read();
+
+  // -----------------------------
+  // Estimate angle
+  // -----------------------------
+  float gyroRate = getGyroRate();       // deg/s
+  float accelAngle = getAccelAngle();   // deg
+
+  float alpha = 0.995;
+
+  angle_est = alpha * (angle_est - gyroRate * dt)
+              + (1.0 - alpha) * accelAngle;
+
+  // -----------------------------
+  // Robot state machine
+  // -----------------------------
+  switch (robotState)
+  {
+    case STATE_FALLEN:
+    {
+      stopMotors();
+      isBalancing = false;
+
+      // Button A: automatic stand-up sequence
+      if (buttonA.getSingleDebouncedPress() &&
+          abs(angle_est) > START_BALANCING_ANGLE_DEG)
+      {
+        motorCommand = 0;
+        wheelPosition = 0;
+        LeftPosition = 0;
+        RightPosition = 0;
+
+        stateStartTime = now;
+        robotState = STATE_STANDUP_WAIT;
+        return;
+      }
+
+      // Button B: delayed direct balance start
+      if (buttonB.getSingleDebouncedPress() &&
+          abs(angle_est) < START_BALANCING_ANGLE_DEG &&
+          abs(gyroRate) < 30.0)
+      {
+        stateStartTime = now;
+        robotState = STATE_BALANCE_WAIT;
+        return;
+      }
+
+      return;
+    }
+
+    case STATE_STANDUP_WAIT:
+    {
+      stopMotors();
+
+      if (now - stateStartTime >= STANDUP_DELAY_MS)
+      {
+        encoders.getCountsAndResetLeft();
+        encoders.getCountsAndResetRight();
+
+        stateStartTime = now;
+        robotState = STATE_STANDUP_KICK;
+      }
+
+      return;
+    }
+
+    case STATE_STANDUP_KICK:
+    {
+      // Build wheel speed and momentum.
+      setMotorSpeeds(
+        STANDUP_KICK_PWM + 30,
+        STANDUP_KICK_PWM - 33
+      );
+
+      if (now - stateStartTime >= STANDUP_KICK_TIME_MS)
+      {
+        stateStartTime = now;
+        robotState = STATE_STANDUP_REVERSE;
+      }
+
+      return;
+    }
+
+    case STATE_STANDUP_REVERSE:
+    {
+      // Reverse wheel acceleration to rotate the body upward.
+      setMotorSpeeds(
+        -STANDUP_REVERSE_PWM,
+        -STANDUP_REVERSE_PWM
+      );
+
+      if (abs(angle_est) < STANDUP_CATCH_ANGLE)
+      {
+        encoders.getCountsAndResetLeft();
+        encoders.getCountsAndResetRight();
+
+        motorCommand = 0;
+        wheelPosition = 0;
+        LeftPosition = 0;
+        RightPosition = 0;
+
+        isBalancing = true;
+        robotState = STATE_BALANCING;
+
+        // No return: run the balance controller immediately below.
+      }
+      else if (now - stateStartTime >= STANDUP_REVERSE_TIMEOUT_MS)
+      {
+        stopMotors();
+
+        motorCommand = 0;
+        isBalancing = false;
+        robotState = STATE_FALLEN;
+
+        return;
+      }
+      else
+      {
+        return;
+      }
+
+      break;
+    }
+
+    case STATE_BALANCE_WAIT:
+    {
+      stopMotors();
+
+      if (now - stateStartTime >= BALANCE_START_DELAY_MS)
+      {
+        // Recheck that the robot is still near upright.
+        if (abs(angle_est) < START_BALANCING_ANGLE_DEG &&
+            abs(gyroRate) < 30.0)
+        {
+          encoders.getCountsAndResetLeft();
+          encoders.getCountsAndResetRight();
+
+          motorCommand = 0;
+          wheelPosition = 0;
+          LeftPosition = 0;
+          RightPosition = 0;
+
+          isBalancing = true;
+          robotState = STATE_BALANCING;
+
+          // No return: run the balance controller immediately below.
+        }
+        else
+        {
+          // Robot moved too far during the delay.
+          robotState = STATE_FALLEN;
+          return;
+        }
+      }
+      else
+      {
+        return;
+      }
+
+      break;
+    }
+
+    case STATE_BALANCING:
+    {
+      if (abs(angle_est) > STOP_BALANCING_ANGLE_DEG)
+      {
+        stopMotors();
+
+        motorCommand = 0;
+        isBalancing = false;
+        robotState = STATE_FALLEN;
+
+        return;
+      }
+
+      break;
+    }
+  }
+
+  // -----------------------------
+  // Encoder update
+  // -----------------------------
+  int16_t leftCounts = encoders.getCountsAndResetLeft();
+  int16_t rightCounts = encoders.getCountsAndResetRight();
+
+  float wheelSpeed = leftCounts + rightCounts;
+
+  wheelPosition += wheelSpeed;
+
+  LeftPosition += leftCounts;
+  RightPosition += rightCounts;
+
+  // -----------------------------
+  // Controller terms
+  // -----------------------------
+  float V = -Kv * wheelSpeed;
+  V = constrain(V, -25.0, 25.0);
+
+  float X = -Kx * wheelPosition;
+  X = constrain(X, -40.0, 40.0);
+
+  float P = Kp * angle_est;
+
+  float D = -Kd * gyroRate;
+  D = constrain(D, -12.0, 12.0);
+
+  // Incremental motor command with leak
+  motorCommand += P + D + V + X;
+  motorCommand = constrain(motorCommand, -MOTOR_LIMIT, MOTOR_LIMIT);
+
+  // Wheel synchronization correction
+  float syncOutput = (LeftPosition - RightPosition) * syncGain;
+
+  float motorOutputL = applyDeadzoneL(motorCommand + syncOutput);
+  float motorOutputR = applyDeadzoneR(motorCommand - syncOutput);
+
+  setMotorSpeeds(motorOutputL, motorOutputR);
+
+  motorCommand *= leak;
+
+  // -----------------------------
+  // Debug printing
+  // -----------------------------
+#if DEBUG_PRINT
+  static int printCount = 0;
+  printCount++;
+
+  if (printCount >= 10)
+  {
+    Serial.print("angle=");
+    Serial.print(angle_est);
+
+    Serial.print(" gyro=");
+    Serial.print(gyroRate);
+
+    Serial.print(" speed=");
+    Serial.print(wheelSpeed);
+
+    Serial.print(" pos=");
+    Serial.print(wheelPosition);
+
+    Serial.print(" P=");
+    Serial.print(P);
+
+    Serial.print(" D=");
+    Serial.print(D);
+
+    Serial.print(" V=");
+    Serial.print(V);
+
+    Serial.print(" X=");
+    Serial.print(X);
+
+    Serial.print(" wheelPos=");
+    Serial.print(leftCounts);
+
+    Serial.print(" MotorCommand=");
+    Serial.print(motorCommand);
+
+    Serial.print(" LwheelPos=");
+    Serial.print(LeftPosition);
+
+    Serial.print(" Rwheelpos=");
+    Serial.print(RightPosition);
+
+    Serial.println();
+
+    printCount = 0;
+  }
+#endif
+}
+
+// =====================================================
+// Helper functions
+// =====================================================
+
+void calibrateGyro()
+{
+  long total = 0;
+
+  for (int i = 0; i < 500; i++)
+  {
+    imu.read();
+    total += imu.g.y;
+    delay(2);
+  }
+
+  gyroBias = total / 500.0;
+}
+
+float getGyroRate()
+{
+  // LSM6 gyro scale for ±1000 dps is roughly 0.035 deg/s per count.
+  return (imu.g.y - gyroBias) * 0.035;
+}
+
+float getAccelAngle()
+{
+  float ax_g = imu.a.x * 0.000488;
+  float az_g = imu.a.z * 0.000488;
+
+  return atan2(ax_g, az_g) * 180.0 / PI - 90.0 + angleOffset;
+}
+
+void setMotorSpeeds(float leftCmd, float rightCmd)
+{
+  leftCmd = constrain(leftCmd, -255, 255);
+  rightCmd = constrain(rightCmd, -255, 255);
+
+  if (leftCmd < 0)
+  {
+    digitalWrite(Left_Dir, LOW);
+    analogWrite(Left_pwm, (int)(-leftCmd));
+  }
+  else
+  {
+    digitalWrite(Left_Dir, HIGH);
+    analogWrite(Left_pwm, (int)(leftCmd));
+  }
+
+  if (rightCmd < 0)
+  {
+    digitalWrite(Right_Dir, LOW);
+    analogWrite(Right_pwm, (int)(-rightCmd));
+  }
+  else
+  {
+    digitalWrite(Right_Dir, HIGH);
+    analogWrite(Right_pwm, (int)(rightCmd));
+  }
+}
+
+float applyDeadzoneL(float cmd)
+{
+  if (abs(cmd) < 1.0)
+  {
+    return 0;
+  }
+
+  float sign = cmd > 0 ? 1.0 : -1.0;
+  float mag = abs(cmd);
+
+  mag = constrain(mag, 0, MOTOR_LIMIT);
+
+  float pwm = MIN_PWM_L + mag * (MOTOR_LIMIT - MIN_PWM_L) / MOTOR_LIMIT;
+
+  return sign * pwm;
+}
+
+float applyDeadzoneR(float cmd)
+{
+  if (abs(cmd) < 1.0)
+  {
+    return 0;
+  }
+
+  float sign = cmd > 0 ? 1.0 : -1.0;
+  float mag = abs(cmd);
+
+  mag = constrain(mag, 0, MOTOR_LIMIT);
+
+  float pwm = MIN_PWM_R + mag * (MOTOR_LIMIT - MIN_PWM_R) / MOTOR_LIMIT;
+
+  return sign * pwm;
+}
+
+void stopMotors()
+{
+  analogWrite(Left_pwm, 0);
+  analogWrite(Right_pwm, 0);
+}
