@@ -584,52 +584,85 @@ motorCommand = constrain(
 
 
         <!-- Kick Start -->
-        <section class="section project-section">
-            <div class="section-heading">
-                <p class="eyebrow">Kick Start</p>
-                <h2>Entering balance without external commands</h2>
+<section class="section project-section">
+    <div class="section-heading">
+        <p class="eyebrow">Kick Start</p>
+        <h2>Transitioning from rest into active balance</h2>
 
-                <p>
-                    The robot automatically recognizes when it has been raised
-                    into the balancing region and begins active stabilization.
-                </p>
-            </div>
+        <p>
+            A button-triggered state machine uses a high-power motor pulse and
+            controlled braking to raise the robot from its resting position
+            before transferring control to the balance controller.
+        </p>
+    </div>
 
-            <div class="project-text">
-                <p>
-                    When the robot is lying down, the motors remain disabled.
-                    As the chassis is raised toward the upright position, the
-                    measured angle eventually enters an activation window.
-                </p>
+    <div class="project-text">
+        <p>
+            The robot begins in an inactive state while resting on the ground.
+            After the start command is given, the motors generate a short,
+            high-power pulse that rotates the chassis toward the upright
+            position.
+        </p>
 
-                <p>
-                    At that point, the controller initializes its internal
-                    position and motor-command values before beginning the
-                    balancing loop. This avoids carrying old controller states
-                    into a new balancing attempt.
-                </p>
+        <p>
+            The controller then applies braking to convert the robot’s momentum
+            into upward rotation. Once the measured angle enters the catch
+            region, the kick-start routine ends and the normal feedback
+            controller takes over.
+        </p>
+    </div>
 
-                <p>
-                    If the robot falls beyond a separate shutdown threshold,
-                    motor output is disabled to prevent the wheels from
-                    continuing to run while the robot is on the ground.
-                </p>
-            </div>
+    <article class="demo-card crane-demo-card">
+        <video
+            controls
+            muted
+            loop
+            playsinline
+            preload="metadata"
+        >
+            <source
+                src="../assets/images/balboa/kick-start-demo.mp4"
+                type="video/mp4"
+            >
 
-            <figure class="result-image">
-                <img
-                    src="../assets/images/balboa/kick-start-sequence.jpg"
-                    alt="Sequence showing the balancing robot entering the upright position"
-                >
+            Your browser does not support the video element.
+        </video>
 
-                <figcaption>
-                    The robot transitions from an inactive state to active
-                    balancing when its measured angle enters the permitted
-                    startup range.
-                </figcaption>
-            </figure>
-        </section>
+        <div class="demo-card-content">
+            <h3>Kick-Start Sequence</h3>
 
+            <p>
+                The robot generates momentum from its resting position, brakes
+                near the upright region, and transitions into closed-loop
+                balancing.
+            </p>
+        </div>
+    </article>
+
+    <div class="crane-control-flow">
+        <div class="crane-control-node">
+            Resting State
+        </div>
+
+        <span class="crane-control-arrow" aria-hidden="true">→</span>
+
+        <div class="crane-control-node">
+            Motor Kick
+        </div>
+
+        <span class="crane-control-arrow" aria-hidden="true">→</span>
+
+        <div class="crane-control-node">
+            Brake Near Upright
+        </div>
+
+        <span class="crane-control-arrow" aria-hidden="true">→</span>
+
+        <div class="crane-control-node">
+            Balance Control
+        </div>
+    </div>
+</section>
 
         <!-- Tuning Process -->
         <section class="section project-section">
