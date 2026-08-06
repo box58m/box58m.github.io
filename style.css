@@ -796,3 +796,10 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+.contact-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+}
